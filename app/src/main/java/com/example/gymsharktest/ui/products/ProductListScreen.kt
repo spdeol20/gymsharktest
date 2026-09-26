@@ -1,6 +1,7 @@
 package com.example.gymsharktest.ui.products
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -9,17 +10,28 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Sort
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -37,6 +49,7 @@ import com.example.gymsharktest.ui.theme.GymsharkTheme
 
 /** Adaptive so a phone shows two columns and a tablet or landscape shows more without a second layout. */
 private val MinCellWidth = 168.dp
+private val GridHorizontalPadding = 20.dp
 private const val SKELETON_CELL_COUNT = 6
 
 @Composable
@@ -69,16 +82,20 @@ fun ProductListScreen(
     onRetry: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    var sort by rememberSaveable { mutableStateOf(CatalogueSort.Catalogue) }
+    val gridProducts = remember(uiState.products, sort) { uiState.products.sortedFor(sort) }
+
     Scaffold(
         modifier = modifier,
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
-            CenterAlignedTopAppBar(
+            TopAppBar(
                 title = {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Column {
                         Text(
                             text = stringResource(R.string.catalogue_title),
-                            style = MaterialTheme.typography.titleMedium,
+                            style = MaterialTheme.typography.headlineMedium,
+                            fontWeight = FontWeight.Bold,
                         )
                         if (uiState.products.isNotEmpty()) {
                             Text(
@@ -86,13 +103,21 @@ fun ProductListScreen(
                                     R.string.catalogue_subtitle,
                                     uiState.products.size,
                                 ),
-                                style = MaterialTheme.typography.labelSmall,
+                                style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                     }
                 },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                actions = {
+                    if (uiState.products.isNotEmpty()) {
+                        SortMenu(
+                            sort = sort,
+                            onSortChange = { sort = it },
+                        )
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background,
                 ),
             )
@@ -119,6 +144,7 @@ fun ProductListScreen(
 
                 else -> ProductGrid(
                     uiState = uiState,
+                    gridProducts = gridProducts,
                     onProductClick = onProductClick,
                 )
             }
@@ -129,15 +155,21 @@ fun ProductListScreen(
 @Composable
 private fun ProductGrid(
     uiState: ProductListUiState,
+    gridProducts: List<Product>,
     onProductClick: (Long) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     LazyVerticalGrid(
         columns = GridCells.Adaptive(MinCellWidth),
         modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 24.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        verticalArrangement = Arrangement.spacedBy(20.dp),
+        contentPadding = PaddingValues(
+            start = GridHorizontalPadding,
+            end = GridHorizontalPadding,
+            top = 8.dp,
+            bottom = 28.dp,
+        ),
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+        verticalArrangement = Arrangement.spacedBy(22.dp),
     ) {
         if (uiState.showStaleWarning) {
             item(span = { GridItemSpan(maxLineSpan) }) {
@@ -148,8 +180,28 @@ private fun ProductGrid(
         if (uiState.showSkeleton) {
             items(SKELETON_CELL_COUNT) { ProductCardSkeleton() }
         } else {
+            if (featuredLabels(uiState.products).isNotEmpty()) {
+                item(key = "featured-shelf", span = { GridItemSpan(maxLineSpan) }) {
+                    FeaturedShelf(
+                        products = uiState.products,
+                        onProductClick = onProductClick,
+                        screenInset = GridHorizontalPadding,
+                    )
+                }
+                item(key = "all-products-heading", span = { GridItemSpan(maxLineSpan) }) {
+                    Text(
+                        text = stringResource(
+                            R.string.catalogue_all_products,
+                            uiState.products.size,
+                        ),
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onBackground,
+                        modifier = Modifier.padding(top = 20.dp),
+                    )
+                }
+            }
             items(
-                items = uiState.products,
+                items = gridProducts,
                 // Stable keys keep scroll position and image state across a refresh.
                 key = { product -> product.id },
             ) { product ->
@@ -161,6 +213,54 @@ private fun ProductGrid(
         }
     }
 }
+
+@Composable
+private fun SortMenu(
+    sort: CatalogueSort,
+    onSortChange: (CatalogueSort) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    Box(modifier) {
+        IconButton(onClick = { expanded = true }) {
+            Icon(
+                imageVector = Icons.Filled.Sort,
+                contentDescription = stringResource(R.string.sort_products),
+            )
+        }
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+        ) {
+            CatalogueSort.entries.forEach { option ->
+                DropdownMenuItem(
+                    text = { Text(stringResource(option.labelRes)) },
+                    onClick = {
+                        onSortChange(option)
+                        expanded = false
+                    },
+                    trailingIcon = if (option == sort) {
+                        {
+                            Icon(
+                                imageVector = Icons.Filled.Check,
+                                contentDescription = null,
+                            )
+                        }
+                    } else {
+                        null
+                    },
+                )
+            }
+        }
+    }
+}
+
+private val CatalogueSort.labelRes: Int
+    get() = when (this) {
+        CatalogueSort.Catalogue -> R.string.sort_catalogue
+        CatalogueSort.PriceLowToHigh -> R.string.sort_price_low
+        CatalogueSort.PriceHighToLow -> R.string.sort_price_high
+    }
 
 @Preview
 @Composable
@@ -213,5 +313,16 @@ private fun previewProducts(): List<Product> = listOf(
             SizeAvailability("M", inStock = true),
             SizeAvailability("L", inStock = false),
         ),
+    ),
+    Product(
+        id = 4,
+        sku = "A-4",
+        title = "Crest Hoodie",
+        colour = "Charcoal",
+        type = "Hoodie",
+        descriptionHtml = "",
+        price = Price(amountMinorUnits = 5500),
+        inStock = true,
+        labels = listOf(ProductLabel.LimitedEdition),
     ),
 )

@@ -1,8 +1,15 @@
 <resources>
     <string name="app_name">Gymshark</string>
 
-    <string name="catalogue_title">Shop All</string>
+    <string name="catalogue_title">Shop</string>
     <string name="catalogue_subtitle">%1$d products</string>
+    <string name="featured_title">Featured</string>
+    <string name="featured_all">All</string>
+    <string name="catalogue_all_products">All products · %1$d</string>
+    <string name="sort_products">Sort</string>
+    <string name="sort_catalogue">Catalogue order</string>
+    <string name="sort_price_low">Price: low to high</string>
+    <string name="sort_price_high">Price: high to low</string>
 
     <string name="action_retry">Try again</string>
     <string name="action_back">Back</string>
@@ -18,7 +25,17 @@
     <string name="empty_body">There are no products in the catalogue yet.</string>
 
     <string name="detail_not_found">We could not find that product.</string>
+    <string name="detail_screen_title">Details</string>
     <string name="detail_sizes">Sizes</string>
+    <string name="price_label">Price</string>
+    <string name="action_decrease_quantity">Decrease quantity</string>
+    <string name="action_increase_quantity">Increase quantity</string>
+    <string name="action_add_to_basket">Add to basket</string>
+    <string name="action_added_to_basket">Added</string>
+    <string name="action_add_favourite">Add to favourites</string>
+    <string name="action_remove_favourite">Remove from favourites</string>
+    <string name="action_read_more">Read more</string>
+    <string name="action_show_less">Show less</string>
     <string name="detail_materials">Materials</string>
     <string name="detail_description">Description</string>
 

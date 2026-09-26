@@ -11,10 +11,21 @@ private val defaults = Typography()
 internal val GymsharkTypography = defaults.copy(
     headlineMedium = defaults.headlineMedium.copy(
         fontWeight = FontWeight.Bold,
-        letterSpacing = (-0.5).sp,
+        letterSpacing = (-0.6).sp,
+    ),
+    titleLarge = defaults.titleLarge.copy(
+        fontWeight = FontWeight.Bold,
+        fontSize = 22.sp,
+        lineHeight = 28.sp,
+        letterSpacing = (-0.4).sp,
     ),
     titleMedium = defaults.titleMedium.copy(
         fontWeight = FontWeight.SemiBold,
+    ),
+    labelMedium = defaults.labelMedium.copy(
+        fontWeight = FontWeight.Medium,
+        fontSize = 13.sp,
+        lineHeight = 16.sp,
     ),
     labelSmall = TextStyle(
         fontFamily = FontFamily.Default,

@@ -6,11 +6,8 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.size
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -20,11 +17,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.dp
 import coil3.compose.SubcomposeAsyncImage
-import com.example.gymsharktest.R
 import com.example.gymsharktest.core.image.withCdnWidth
 import com.example.gymsharktest.model.ProductImage
 
@@ -43,9 +39,14 @@ fun ProductImageView(
     contentDescription: String?,
     modifier: Modifier = Modifier,
     targetWidthPx: Int = DEFAULT_TARGET_WIDTH_PX,
+    fallbackLabel: String? = null,
 ) {
     if (image == null) {
-        ImagePlaceholder(modifier = modifier)
+        ImagePlaceholder(
+            modifier = modifier,
+            fallbackLabel = fallbackLabel,
+            contentDescription = contentDescription,
+        )
         return
     }
 
@@ -55,31 +56,46 @@ fun ProductImageView(
         modifier = modifier.background(MaterialTheme.colorScheme.surfaceVariant),
         contentScale = ContentScale.Crop,
         loading = { ShimmerBox(modifier = Modifier.fillMaxSize()) },
-        error = { ImagePlaceholder(modifier = Modifier.fillMaxSize()) },
+        error = {
+            ImagePlaceholder(
+                modifier = Modifier.fillMaxSize(),
+                fallbackLabel = fallbackLabel,
+            )
+        },
     )
 }
 
 @Composable
-fun ImagePlaceholder(modifier: Modifier = Modifier) {
+fun ImagePlaceholder(
+    modifier: Modifier = Modifier,
+    fallbackLabel: String? = null,
+    contentDescription: String? = null,
+) {
+    val initial = fallbackLabel
+        ?.trim()
+        ?.firstOrNull { it.isLetterOrDigit() }
+        ?.uppercaseChar()
+        ?.toString()
+        .orEmpty()
+
     Box(
-        modifier = modifier.background(MaterialTheme.colorScheme.surfaceVariant),
+        modifier = modifier
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .then(
+                if (contentDescription != null) {
+                    Modifier.semantics { this.contentDescription = contentDescription }
+                } else {
+                    Modifier
+                },
+            ),
         contentAlignment = Alignment.Center,
     ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(28.dp)
-                    .background(MaterialTheme.colorScheme.outline),
-            )
+        if (initial.isNotEmpty()) {
             Text(
-                text = stringResource(R.string.image_missing),
-                style = MaterialTheme.typography.labelSmall,
+                text = initial,
+                style = MaterialTheme.typography.headlineMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
-                modifier = Modifier.alpha(0.9f),
             )
         }
     }

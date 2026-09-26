@@ -1,11 +1,12 @@
 package com.example.gymsharktest.ui.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -13,12 +14,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.gymsharktest.R
 import com.example.gymsharktest.model.ProductLabel
-
-private val BadgeShape = RoundedCornerShape(4.dp)
 
 @Composable
 fun Badge(
@@ -26,32 +26,45 @@ fun Badge(
     containerColor: Color,
     contentColor: Color,
     modifier: Modifier = Modifier,
+    outlined: Boolean = false,
 ) {
     Text(
-        text = text.uppercase(),
-        style = MaterialTheme.typography.labelSmall,
+        text = text,
+        style = MaterialTheme.typography.labelMedium,
+        fontWeight = FontWeight.Medium,
         color = contentColor,
         maxLines = 1,
         overflow = TextOverflow.Ellipsis,
         modifier = modifier
-            .clip(BadgeShape)
-            .background(containerColor)
-            .padding(horizontal = 6.dp, vertical = 3.dp),
+            .clip(CircleShape)
+            .then(
+                if (outlined) {
+                    Modifier.border(width = 1.dp, color = contentColor, shape = CircleShape)
+                } else {
+                    Modifier.background(containerColor)
+                },
+            )
+            .padding(horizontal = 12.dp, vertical = 6.dp),
     )
 }
 
 @Composable
-fun LabelBadge(label: ProductLabel, modifier: Modifier = Modifier) {
+fun LabelBadge(
+    label: ProductLabel,
+    modifier: Modifier = Modifier,
+    filled: Boolean = label.prefersFilledPill,
+) {
     val scheme = MaterialTheme.colorScheme
-    // Sale is the only label that earns the error colour; the rest stay monochrome so a product
-    // carrying several labels does not turn into a traffic light.
-    val container = if (label is ProductLabel.Sale) scheme.error else scheme.onSurface
-    val content = if (label is ProductLabel.Sale) scheme.onError else scheme.surface
-
+    val sale = label is ProductLabel.Sale
     Badge(
         text = label.displayText(),
-        containerColor = container,
-        contentColor = content,
+        containerColor = if (sale) scheme.error else scheme.primary,
+        contentColor = when {
+            !filled -> scheme.onSurface
+            sale -> scheme.onError
+            else -> scheme.onPrimary
+        },
+        outlined = !filled,
         modifier = modifier,
     )
 }
@@ -62,22 +75,28 @@ fun LabelBadgeRow(
     labels: List<ProductLabel>,
     modifier: Modifier = Modifier,
     maxLabels: Int = Int.MAX_VALUE,
+    filled: Boolean = false,
 ) {
     if (labels.isEmpty()) return
 
     FlowRow(
         modifier = modifier,
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        labels.take(maxLabels).forEach { label -> LabelBadge(label) }
+        labels.take(maxLabels).forEach { label ->
+            LabelBadge(
+                label = label,
+                filled = filled || label.prefersFilledPill,
+            )
+        }
     }
 }
 
-/**
- * Unknown labels render their own text because the vocabulary is an open set; the known ones use
- * translated strings.
- */
+/** New and Sale read as the primary mark; everything else stays an outline on a light surface. */
+private val ProductLabel.prefersFilledPill: Boolean
+    get() = this is ProductLabel.New || this is ProductLabel.Sale
+
 @Composable
 fun ProductLabel.displayText(): String = when (this) {
     ProductLabel.New -> stringResource(R.string.label_new)

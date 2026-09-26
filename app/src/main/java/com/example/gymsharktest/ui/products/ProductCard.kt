@@ -1,6 +1,9 @@
 package com.example.gymsharktest.ui.products
 
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,10 +17,14 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -38,8 +45,8 @@ import com.example.gymsharktest.ui.components.displayText
 import com.example.gymsharktest.ui.components.rememberPriceFormatter
 
 /** Portrait crop matching the catalogue's own photography. */
-private const val MEDIA_ASPECT_RATIO = 0.75f
-private val MediaShape = RoundedCornerShape(14.dp)
+private const val MEDIA_ASPECT_RATIO = 0.8f
+private val MediaShape = RoundedCornerShape(22.dp)
 private const val SOLD_OUT_IMAGE_ALPHA = 0.55f
 
 @Composable
@@ -49,11 +56,17 @@ fun ProductCard(
     modifier: Modifier = Modifier,
 ) {
     val announcement = product.announceableSummary()
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val scale by animateFloatAsState(if (pressed) 0.98f else 1f, label = "card-press")
 
     Column(
         modifier = modifier
-            .clip(MediaShape)
-            .clickable(onClick = onClick)
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+            }
+            .clickable(interactionSource = interaction, indication = null, onClick = onClick)
             .clearAndSetSemantics {
                 contentDescription = announcement
                 role = Role.Button
@@ -72,9 +85,10 @@ fun ProductCard(
             ProductImageView(
                 image = product.featuredImage,
                 contentDescription = null,
+                fallbackLabel = product.title,
                 modifier = Modifier
                     .fillMaxSize()
-                    .alpha(if (product.inStock) 1f else SOLD_OUT_IMAGE_ALPHA),
+                    .alpha(if (product.inStock || !product.hasImage) 1f else SOLD_OUT_IMAGE_ALPHA),
             )
 
             val discount = product.cardDiscountPercent
@@ -86,7 +100,7 @@ fun ProductCard(
                     contentColor = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier
                         .align(Alignment.TopStart)
-                        .padding(8.dp),
+                        .padding(10.dp),
                 )
                 discount != null -> Badge(
                     text = stringResource(R.string.badge_discount, discount),
@@ -94,13 +108,14 @@ fun ProductCard(
                     contentColor = MaterialTheme.colorScheme.onError,
                     modifier = Modifier
                         .align(Alignment.TopEnd)
-                        .padding(8.dp),
+                        .padding(10.dp),
                 )
                 cardLabel != null -> LabelBadge(
                     label = cardLabel,
+                    filled = true,
                     modifier = Modifier
                         .align(Alignment.TopStart)
-                        .padding(8.dp),
+                        .padding(10.dp),
                 )
             }
         }
@@ -113,7 +128,8 @@ fun ProductCard(
         ) {
             Text(
                 text = product.title,
-                style = MaterialTheme.typography.bodyMedium,
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onBackground,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
@@ -143,7 +159,7 @@ fun ProductCard(
                             product.remainingSizeCount,
                         ),
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.secondary,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             } else {

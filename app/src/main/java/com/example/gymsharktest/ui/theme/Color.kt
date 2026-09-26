@@ -2,18 +2,19 @@ package com.example.gymsharktest.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-internal val Ink = Color(0xFF0B0B0B)
-internal val InkMuted = Color(0xFF6B6B6B)
+internal val Ink = Color(0xFF161616)
+internal val InkMuted = Color(0xFF8A847C)
+internal val Cream = Color(0xFFF6F3EE)
+internal val ImageWell = Color(0xFFEFEBE4)
 internal val Paper = Color(0xFFFFFFFF)
-internal val PaperMuted = Color(0xFFF4F4F4)
-internal val Outline = Color(0xFFDCDCDC)
+internal val Outline = Color(0xFFE4DFD6)
 
-internal val InkDark = Color(0xFF121212)
-internal val InkDarkElevated = Color(0xFF1E1E1E)
-internal val PaperDark = Color(0xFFF2F2F2)
-internal val PaperDarkMuted = Color(0xFFA8A8A8)
-internal val OutlineDark = Color(0xFF3A3A3A)
+internal val InkDark = Color(0xFF121110)
+internal val InkDarkElevated = Color(0xFF1C1B19)
+internal val ImageWellDark = Color(0xFF2A2724)
+internal val PaperDark = Color(0xFFF6F3EE)
+internal val PaperDarkMuted = Color(0xFFB7B1A8)
+internal val OutlineDark = Color(0xFF3A3632)
 
-internal val Accent = Color(0xFF00C2A8)
 internal val Sale = Color(0xFFD32F2F)
 internal val OnSale = Color(0xFFFFFFFF)
