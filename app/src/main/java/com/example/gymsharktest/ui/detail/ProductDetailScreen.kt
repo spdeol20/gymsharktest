@@ -14,12 +14,14 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -27,6 +29,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
@@ -68,6 +71,8 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -75,8 +80,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import android.content.Intent
+import android.content.res.Configuration
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.gymsharktest.R
@@ -93,9 +100,11 @@ import com.example.gymsharktest.ui.components.displayText
 import com.example.gymsharktest.ui.text.rememberHtmlDescription
 
 private const val MEDIA_ASPECT_RATIO = 0.92f
+private val TabletMinWidth = 600.dp
 private const val DETAIL_IMAGE_WIDTH_PX = 1080
 private val ImageShape = RoundedCornerShape(28.dp)
 private val SheetShape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+private val LandscapeSheetShape = RoundedCornerShape(28.dp)
 private const val MAX_PAGER_DOTS = 6
 private const val MIN_BASKET_QUANTITY = 1
 private const val MAX_BASKET_QUANTITY = 10
@@ -208,65 +217,116 @@ private fun BackButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
 
 @Composable
 private fun DetailContent(product: Product, modifier: Modifier = Modifier) {
-    Column(
+    val landscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
+    BoxWithConstraints(modifier = modifier.fillMaxSize()) {
+        val sideBySide = landscape || maxWidth >= TabletMinWidth
+        if (sideBySide) {
+            SideBySideDetail(product = product, imageMaxWidth = maxWidth * 0.5f)
+        } else {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState()),
+            ) {
+                MediaCarousel(
+                    product = product,
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                )
+                ProductSheet(
+                    product = product,
+                    modifier = Modifier.padding(top = 18.dp),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SideBySideDetail(
+    product: Product,
+    imageMaxWidth: Dp,
+    modifier: Modifier = Modifier,
+) {
+    Row(
         modifier = modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState()),
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         MediaCarousel(
             product = product,
-            modifier = Modifier.padding(horizontal = 16.dp),
+            fitHeight = true,
+            modifier = Modifier
+                .fillMaxHeight()
+                .widthIn(max = imageMaxWidth)
+                .aspectRatio(MEDIA_ASPECT_RATIO, matchHeightConstraintsFirst = true),
+        )
+        ProductSheet(
+            product = product,
+            shape = LandscapeSheetShape,
+            scroll = true,
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxHeight(),
+        )
+    }
+}
+
+@Composable
+private fun ProductSheet(
+    product: Product,
+    modifier: Modifier = Modifier,
+    shape: Shape = SheetShape,
+    scroll: Boolean = false,
+) {
+    Column(
+        modifier = modifier
+            .clip(shape)
+            .background(MaterialTheme.colorScheme.surface)
+            .then(if (scroll) Modifier.verticalScroll(rememberScrollState()) else Modifier)
+            .padding(horizontal = 20.dp, vertical = 22.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        if (product.inStock && product.merchandisingLabels.isNotEmpty()) {
+            LabelBadgeRow(labels = product.merchandisingLabels)
+        }
+
+        Text(
+            text = product.title,
+            style = MaterialTheme.typography.titleLarge,
+            color = MaterialTheme.colorScheme.onBackground,
         )
 
-        Column(
-            modifier = Modifier
-                .padding(top = 18.dp)
-                .clip(SheetShape)
-                .background(MaterialTheme.colorScheme.surface)
-                .padding(horizontal = 20.dp, vertical = 22.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
-        ) {
-            if (product.inStock && product.merchandisingLabels.isNotEmpty()) {
-                LabelBadgeRow(labels = product.merchandisingLabels)
-            }
-
+        val subtitle = listOfNotNull(
+            product.colour?.takeIf(String::isNotBlank),
+            product.type?.takeIf(String::isNotBlank),
+        ).joinToString(separator = " \u00B7 ")
+        if (subtitle.isNotEmpty()) {
             Text(
-                text = product.title,
-                style = MaterialTheme.typography.titleLarge,
-                color = MaterialTheme.colorScheme.onBackground,
+                text = subtitle,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-
-            val subtitle = listOfNotNull(
-                product.colour?.takeIf(String::isNotBlank),
-                product.type?.takeIf(String::isNotBlank),
-            ).joinToString(separator = " \u00B7 ")
-            if (subtitle.isNotEmpty()) {
-                Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-
-            PriceRow(
-                price = product.price,
-                style = MaterialTheme.typography.titleLarge,
-            )
-
-            if (product.sizes.isNotEmpty()) {
-                SectionTitle(stringResource(R.string.detail_sizes))
-                SizeRow(sizes = product.sizes)
-            }
-
-            if (product.materialLabels.isNotEmpty()) {
-                SectionTitle(stringResource(R.string.detail_materials))
-                MaterialChipRow(labels = product.materialLabels)
-            }
-
-            DetailInfoRows(product = product)
-
-            ProductActions(product = product)
         }
+
+        PriceRow(
+            price = product.price,
+            style = MaterialTheme.typography.titleLarge,
+        )
+
+        if (product.sizes.isNotEmpty()) {
+            SectionTitle(stringResource(R.string.detail_sizes))
+            SizeRow(sizes = product.sizes)
+        }
+
+        if (product.materialLabels.isNotEmpty()) {
+            SectionTitle(stringResource(R.string.detail_materials))
+            MaterialChipRow(labels = product.materialLabels)
+        }
+
+        DetailInfoRows(product = product)
+
+        ProductActions(product = product)
     }
 }
 
@@ -763,12 +823,20 @@ private fun BasketButton(
 }
 
 @Composable
-private fun MediaCarousel(product: Product, modifier: Modifier = Modifier) {
+private fun MediaCarousel(
+    product: Product,
+    modifier: Modifier = Modifier,
+    fitHeight: Boolean = false,
+) {
     val images = product.images
-    val frame = modifier
-        .fillMaxWidth()
-        .aspectRatio(MEDIA_ASPECT_RATIO)
-        .clip(ImageShape)
+    val frame = if (fitHeight) {
+        modifier.clip(ImageShape)
+    } else {
+        modifier
+            .fillMaxWidth()
+            .aspectRatio(MEDIA_ASPECT_RATIO)
+            .clip(ImageShape)
+    }
 
     if (images.isEmpty()) {
         ProductImageView(
@@ -782,13 +850,21 @@ private fun MediaCarousel(product: Product, modifier: Modifier = Modifier) {
 
     val pagerState = rememberPagerState { images.size }
 
-    Column(modifier = modifier.fillMaxWidth()) {
-        HorizontalPager(
-            state = pagerState,
-            modifier = Modifier
+    Column(modifier = if (fitHeight) modifier else modifier.fillMaxWidth()) {
+        val pagerModifier = if (fitHeight) {
+            Modifier
+                .fillMaxWidth()
+                .weight(1f)
+                .clip(ImageShape)
+        } else {
+            Modifier
                 .fillMaxWidth()
                 .aspectRatio(MEDIA_ASPECT_RATIO)
-                .clip(ImageShape),
+                .clip(ImageShape)
+        }
+        HorizontalPager(
+            state = pagerState,
+            modifier = pagerModifier,
         ) { page ->
             ProductImageView(
                 image = images[page],
