@@ -1,5 +1,44 @@
 <resources>
     <string name="app_name">Gymshark</string>
-    <string name="placeholder_title">Gymshark</string>
-    <string name="placeholder_body">Toolchain ready. Product catalogue arrives in a later phase.</string>
+
+    <string name="catalogue_title">Shop All</string>
+    <string name="catalogue_subtitle">%1$d products</string>
+
+    <string name="action_retry">Try again</string>
+    <string name="action_back">Back</string>
+
+    <string name="error_network">No connection. Check your network and try again.</string>
+    <string name="error_timeout">That took too long. Try again.</string>
+    <string name="error_parsing">We could not read the catalogue right now.</string>
+    <string name="error_empty">The catalogue is empty right now.</string>
+    <string name="error_unexpected">Something went wrong. Try again.</string>
+    <string name="error_stale">Showing saved products. Pull to refresh.</string>
+
+    <string name="empty_title">Nothing to show</string>
+    <string name="empty_body">There are no products in the catalogue yet.</string>
+
+    <string name="detail_not_found">We could not find that product.</string>
+    <string name="detail_sizes">Sizes</string>
+    <string name="detail_materials">Materials</string>
+    <string name="detail_description">Description</string>
+
+    <string name="image_missing">No image available</string>
+    <string name="product_image_of">Photo of %1$s</string>
+
+    <string name="badge_sold_out">Sold out</string>
+    <string name="badge_discount">-%1$d%%</string>
+    <string name="label_new">New</string>
+    <string name="label_coming_soon">Coming soon</string>
+    <string name="label_back_in_stock">Back in stock</string>
+    <string name="label_sale">Sale</string>
+    <string name="label_going_fast">Going fast</string>
+    <string name="label_limited_edition">Limited edition</string>
+    <string name="label_popular">Popular</string>
+    <string name="label_recycled_nylon">Recycled nylon</string>
+    <string name="label_recycled_polyester">Recycled polyester</string>
+
+    <plurals name="sizes_left">
+        <item quantity="one">%d size left</item>
+        <item quantity="other">%d sizes left</item>
+    </plurals>
 </resources>

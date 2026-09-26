@@ -11,9 +11,9 @@ sealed interface AppResult<out T> {
 /**
  * The failure vocabulary the UI understands.
  *
- * Deliberately carries no throwable, message, or stack trace. Exceptions are logged where they are
- * caught, in the data layer, and never travel upward — that keeps host names, transport details,
- * and payload fragments out of anything that could be rendered or screenshotted.
+ * Deliberately carries no throwable, message, or stack trace. Exceptions are caught at the
+ * data-layer boundary and never travel upward, which keeps host names, transport details, and
+ * payload fragments out of anything that could be rendered or screenshotted.
  */
 sealed interface AppError {
 
@@ -29,7 +29,7 @@ sealed interface AppError {
     /** The request succeeded but yielded nothing usable. */
     data object Empty : AppError
 
-    /** Anything else. Logged at the boundary, opaque here by design. */
+    /** Anything else. Opaque here by design. */
     data object Unexpected : AppError
 }
 

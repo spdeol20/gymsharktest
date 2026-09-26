@@ -3,14 +3,25 @@ package com.example.gymsharktest.model
 import androidx.compose.runtime.Immutable
 
 /**
- * A merchandising label shown as a badge on a product.
+ * A merchandising or material label shown as a badge on a product.
  *
  * The label vocabulary is an open set: the catalogue can introduce new values at any time without
  * a client release. Unrecognised values are therefore preserved as [Unknown] and still rendered,
  * rather than being dropped, which would silently hide merchandising the API asked us to show.
+ *
+ * [Kind] splits product-state labels from material attributes so the card can show one decision
+ * signal and the detail screen can put recycled-fibre claims next to the description.
  */
 @Immutable
 sealed interface ProductLabel {
+
+    val kind: Kind
+        get() = when (this) {
+            RecycledNylon, RecycledPolyester -> Kind.Material
+            else -> Kind.Merchandising
+        }
+
+    enum class Kind { Merchandising, Material }
 
     data object New : ProductLabel
 
@@ -19,6 +30,16 @@ sealed interface ProductLabel {
     data object BackInStock : ProductLabel
 
     data object Sale : ProductLabel
+
+    data object GoingFast : ProductLabel
+
+    data object LimitedEdition : ProductLabel
+
+    data object Popular : ProductLabel
+
+    data object RecycledNylon : ProductLabel
+
+    data object RecycledPolyester : ProductLabel
 
     @Immutable
     data class Unknown(val text: String) : ProductLabel
@@ -44,12 +65,18 @@ sealed interface ProductLabel {
                 .orEmpty()
             if (normalised.isEmpty()) return null
 
-            return when (normalised.lowercase().replace('_', ' ').replace('-', ' ')) {
+            val forMatch = normalised.lowercase().replace('_', ' ').replace('-', ' ')
+            return when (forMatch) {
                 "new", "new in", "newin", "new arrival", "new arrivals" -> New
                 "coming soon", "comingsoon", "pre order", "preorder" -> ComingSoon
                 "back in stock", "backinstock", "restocked" -> BackInStock
                 "sale", "on sale", "discount", "discounted" -> Sale
-                else -> Unknown(capLength(normalised))
+                "going fast", "goingfast" -> GoingFast
+                "limited edition", "limitededition" -> LimitedEdition
+                "popular" -> Popular
+                "recycled nylon", "recyclednylon" -> RecycledNylon
+                "recycled polyester", "recycledpolyester" -> RecycledPolyester
+                else -> Unknown(capLength(normalised.replace('_', ' ').replace('-', ' ')))
             }
         }
 

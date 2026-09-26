@@ -33,13 +33,32 @@ class ProductLabelTest {
         assertEquals(ProductLabel.BackInStock, ProductLabel.from("Restocked"))
         assertEquals(ProductLabel.Sale, ProductLabel.from("SALE"))
         assertEquals(ProductLabel.Sale, ProductLabel.from("on sale"))
+        assertEquals(ProductLabel.GoingFast, ProductLabel.from("going-fast"))
+        assertEquals(ProductLabel.LimitedEdition, ProductLabel.from("Limited Edition"))
+        assertEquals(ProductLabel.LimitedEdition, ProductLabel.from("limited-edition"))
+        assertEquals(ProductLabel.Popular, ProductLabel.from("popular"))
+        assertEquals(ProductLabel.RecycledNylon, ProductLabel.from("recycled-nylon"))
+        assertEquals(ProductLabel.RecycledPolyester, ProductLabel.from("recycled polyester"))
+    }
+
+    @Test
+    fun `known merchandising and material labels report the right kind`() {
+        assertEquals(ProductLabel.Kind.Merchandising, ProductLabel.GoingFast.kind)
+        assertEquals(ProductLabel.Kind.Merchandising, ProductLabel.Unknown("FLASH SALE").kind)
+        assertEquals(ProductLabel.Kind.Material, ProductLabel.RecycledNylon.kind)
+        assertEquals(ProductLabel.Kind.Material, ProductLabel.RecycledPolyester.kind)
     }
 
     @Test
     fun `an unrecognised label is preserved rather than dropped`() {
-        val label = ProductLabel.from("Limited Edition")
+        val label = ProductLabel.from("Flash Sale")
 
-        assertEquals(ProductLabel.Unknown("Limited Edition"), label)
+        assertEquals(ProductLabel.Unknown("Flash Sale"), label)
+    }
+
+    @Test
+    fun `unrecognised hyphenated labels become readable display text`() {
+        assertEquals(ProductLabel.Unknown("FLASH SALE"), ProductLabel.from("FLASH-SALE"))
     }
 
     @Test
@@ -49,14 +68,14 @@ class ProductLabelTest {
 
     @Test
     fun `whitespace inside an unrecognised label is collapsed, not removed`() {
-        assertEquals(ProductLabel.Unknown("Limited Edition"), ProductLabel.from("Limited\n   Edition"))
+        assertEquals(ProductLabel.Unknown("Flash Sale"), ProductLabel.from("Flash\n   Sale"))
     }
 
     @Test
     fun `control characters are stripped from an unrecognised label`() {
-        val label = ProductLabel.from("Limited\u0000 Edition\u0007")
+        val label = ProductLabel.from("Flash\u0000 Sale\u0007")
 
-        assertEquals(ProductLabel.Unknown("Limited Edition"), label)
+        assertEquals(ProductLabel.Unknown("Flash Sale"), label)
     }
 
     @Test
@@ -83,12 +102,12 @@ class ProductLabelTest {
 
     @Test
     fun `a list of raw labels maps to known labels with blanks dropped`() {
-        val raw = listOf("New", null, "  ", "Limited Edition", "SALE")
+        val raw = listOf("New", null, "  ", "Flash Sale", "SALE")
 
         val labels = raw.mapNotNull(ProductLabel::from)
 
         assertEquals(
-            listOf(ProductLabel.New, ProductLabel.Unknown("Limited Edition"), ProductLabel.Sale),
+            listOf(ProductLabel.New, ProductLabel.Unknown("Flash Sale"), ProductLabel.Sale),
             labels,
         )
     }
