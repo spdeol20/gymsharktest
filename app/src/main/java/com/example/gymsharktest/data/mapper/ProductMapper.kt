@@ -65,7 +65,7 @@ class ProductMapper @Inject constructor(
                 amountMinorUnits = amount,
                 compareAtMinorUnits = compareAtPrice?.takeIf { it > 0L },
             ),
-            inStock = inStock ?: sizes.any { it.inStock },
+            inStock = resolveInStock(inStock, sizes),
             labels = parseLabels(labels),
             images = parseImages(),
             sizes = sizes,
@@ -89,6 +89,14 @@ class ProductMapper @Inject constructor(
             heightPx = height?.takeIf { it > 0 },
         )
     }
+
+    /**
+     * When sizes exist they are the source of truth: a product-level `inStock` flag can disagree
+     * with every variant (as on B1A2J-style records, or a stale `true` over empty inventory).
+     * The flag is only used when the payload has no usable size rows.
+     */
+    private fun resolveInStock(flag: Boolean?, sizes: List<SizeAvailability>): Boolean =
+        if (sizes.isNotEmpty()) sizes.any { it.inStock } else flag ?: false
 
     private fun AvailableSizeDto.toSizeAvailability(): SizeAvailability? {
         val size = size.nonBlank() ?: return null

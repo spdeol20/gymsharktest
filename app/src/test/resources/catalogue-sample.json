@@ -107,6 +107,40 @@
       "title": "Minimal Product",
       "price": 0,
       "brandNewFieldTheApiAddedToday": { "nested": ["anything", 1, true] }
+    },
+    {
+      "id": 1011,
+      "sku": "STALEFLAG",
+      "title": "Product Flag Says In Stock",
+      "price": 1000,
+      "inStock": true,
+      "availableSizes": [
+        { "inStock": false, "inventoryQuantity": -1, "size": "s" },
+        { "inStock": false, "inventoryQuantity": -1, "size": "m" }
+      ]
+    },
+    {
+      "id": 1012,
+      "sku": "LIESOLD",
+      "title": "Product Flag Says Sold Out",
+      "price": 1000,
+      "inStock": false,
+      "availableSizes": [
+        { "inStock": false, "inventoryQuantity": 0, "size": "s" },
+        { "inStock": true, "inventoryQuantity": 2, "size": "m" }
+      ]
+    },
+    {
+      "id": 1013,
+      "sku": "B1A2J",
+      "title": "All Sizes Out Of Stock",
+      "price": 1000,
+      "inStock": false,
+      "sizeInStock": null,
+      "availableSizes": [
+        { "inStock": false, "inventoryQuantity": -1, "size": "xs" },
+        { "inStock": false, "inventoryQuantity": -1, "size": "s" }
+      ]
     }
   ],
   "nbHits": 10,

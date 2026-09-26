@@ -80,6 +80,14 @@ fun ProductCard(
             val discount = product.cardDiscountPercent
             val cardLabel = product.cardLabel
             when {
+                !product.inStock -> Badge(
+                    text = stringResource(R.string.badge_sold_out),
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    contentColor = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(8.dp),
+                )
                 discount != null -> Badge(
                     text = stringResource(R.string.badge_discount, discount),
                     containerColor = MaterialTheme.colorScheme.error,

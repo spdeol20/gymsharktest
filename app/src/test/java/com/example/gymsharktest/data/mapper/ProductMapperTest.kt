@@ -35,7 +35,7 @@ class ProductMapperTest {
         val products = sampleProducts()
 
         assertEquals(
-            listOf(6732609257571L, 1002L, 1003L, 1004L, 1005L, 1010L),
+            listOf(6732609257571L, 1002L, 1003L, 1004L, 1005L, 1010L, 1011L, 1012L, 1013L),
             products.map(Product::id),
         )
     }
@@ -60,7 +60,7 @@ class ProductMapperTest {
         val products = sampleProducts()
 
         assertNull("the malformed record should be gone", products.find { it.sku == "BADTYPE" })
-        assertEquals("its siblings should be unaffected", 6, products.size)
+        assertEquals("its siblings should be unaffected", 9, products.size)
     }
 
     @Test
@@ -176,14 +176,40 @@ class ProductMapperTest {
     }
 
     @Test
-    fun `stock falls back to size availability when the flag is absent`() {
-        // MINIMAL has neither an inStock flag nor any sizes, so it cannot be in stock.
+    fun `stock falls back to the product flag only when there are no sizes`() {
         assertFalse(productWithSku("MINIMAL").inStock)
+        assertFalse(productWithSku("NOIMG").inStock)
+        assertTrue(productWithSku("BADIMG").inStock)
     }
 
     @Test
-    fun `an explicit out-of-stock flag is respected`() {
-        assertFalse(productWithSku("NOIMG").inStock)
+    fun `sizes win when the product flag says in stock but every size is gone`() {
+        val product = productWithSku("STALEFLAG")
+
+        assertFalse(product.inStock)
+        assertTrue(product.availableSizes.isEmpty())
+    }
+
+    @Test
+    fun `sizes win when the product flag says sold out but a size is available`() {
+        val product = productWithSku("LIESOLD")
+
+        assertTrue(product.inStock)
+        assertEquals(listOf("M"), product.availableSizes.map(SizeAvailability::size))
+    }
+
+    @Test
+    fun `a product with every size out of stock is sold out`() {
+        val product = productWithSku("B1A2J")
+
+        assertFalse(product.inStock)
+        assertEquals(
+            listOf(
+                SizeAvailability("XS", inStock = false),
+                SizeAvailability("S", inStock = false),
+            ),
+            product.sizes,
+        )
     }
 
     @Test
