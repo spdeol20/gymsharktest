@@ -2,7 +2,6 @@ package com.example.gymsharktest.ui.detail
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.tween
@@ -40,12 +39,14 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.Flag
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -60,8 +61,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.pluralStringResource
@@ -92,11 +96,6 @@ private const val MEDIA_ASPECT_RATIO = 0.92f
 private const val DETAIL_IMAGE_WIDTH_PX = 1080
 private val ImageShape = RoundedCornerShape(28.dp)
 private val SheetShape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
-/**
- * Catalogue descriptions open with a short heading and a blank line, so two lines would hide the
- * body. Four leaves the heading plus a couple of lines of copy above Read more.
- */
-private const val COLLAPSED_DESCRIPTION_LINES = 4
 private const val MAX_PAGER_DOTS = 6
 private const val MIN_BASKET_QUANTITY = 1
 private const val MAX_BASKET_QUANTITY = 10
@@ -254,10 +253,6 @@ private fun DetailContent(product: Product, modifier: Modifier = Modifier) {
                 style = MaterialTheme.typography.titleLarge,
             )
 
-            if (product.descriptionHtml.isNotBlank()) {
-                DescriptionBlock(html = product.descriptionHtml)
-            }
-
             if (product.sizes.isNotEmpty()) {
                 SectionTitle(stringResource(R.string.detail_sizes))
                 SizeRow(sizes = product.sizes)
@@ -267,6 +262,8 @@ private fun DetailContent(product: Product, modifier: Modifier = Modifier) {
                 SectionTitle(stringResource(R.string.detail_materials))
                 MaterialChipRow(labels = product.materialLabels)
             }
+
+            DetailInfoRows(product = product)
 
             ProductActions(product = product)
         }
@@ -349,44 +346,111 @@ private fun ProductActions(product: Product, modifier: Modifier = Modifier) {
     }
 }
 
-@Composable
-private fun DescriptionBlock(html: String, modifier: Modifier = Modifier) {
-    val description = rememberHtmlDescription(html)
-    var expanded by rememberSaveable { mutableStateOf(false) }
-    var canExpand by rememberSaveable { mutableStateOf(false) }
+private enum class DetailSheet { Description, Delivery }
 
-    Column(
-        modifier = modifier.animateContentSize(tween(220, easing = FastOutSlowInEasing)),
-        verticalArrangement = Arrangement.spacedBy(6.dp),
-    ) {
-        Text(
-            text = description,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = if (expanded) Int.MAX_VALUE else COLLAPSED_DESCRIPTION_LINES,
-            overflow = TextOverflow.Ellipsis,
-            onTextLayout = { layout ->
-                if (!expanded && layout.hasVisualOverflow) canExpand = true
-            },
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun DetailInfoRows(product: Product, modifier: Modifier = Modifier) {
+    var openName by rememberSaveable(product.id) { mutableStateOf<String?>(null) }
+    val open = openName?.let { runCatching { DetailSheet.valueOf(it) }.getOrNull() }
+
+    Column(modifier) {
+        InfoRow(
+            label = stringResource(R.string.detail_description),
+            onClick = { openName = DetailSheet.Description.name },
         )
-        if (canExpand) {
-            Text(
-                text = stringResource(if (expanded) R.string.action_show_less else R.string.action_read_more),
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onBackground,
-                textDecoration = TextDecoration.Underline,
-                modifier = Modifier.clickable { expanded = !expanded },
-            )
+        HorizontalDivider(color = MaterialTheme.colorScheme.outline)
+        InfoRow(
+            label = stringResource(R.string.detail_delivery),
+            onClick = { openName = DetailSheet.Delivery.name },
+        )
+    }
+
+    val sheet = open
+    if (sheet != null) {
+        ModalBottomSheet(
+            onDismissRequest = { openName = null },
+            containerColor = MaterialTheme.colorScheme.surface,
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 20.dp)
+                    .padding(bottom = 28.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Text(
+                    text = stringResource(
+                        if (sheet == DetailSheet.Description) {
+                            R.string.detail_description
+                        } else {
+                            R.string.detail_delivery
+                        },
+                    ),
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.onBackground,
+                )
+                if (sheet == DetailSheet.Description && product.descriptionHtml.isNotBlank()) {
+                    Text(
+                        text = rememberHtmlDescription(product.descriptionHtml),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                } else {
+                    Text(
+                        text = stringResource(
+                            if (sheet == DetailSheet.Description) {
+                                R.string.detail_description_empty
+                            } else {
+                                R.string.detail_delivery_body
+                            },
+                        ),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
         }
     }
 }
 
 @Composable
+private fun InfoRow(
+    label: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onBackground,
+            modifier = Modifier.weight(1f),
+        )
+        Icon(
+            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
 private fun BasketBar(product: Product, modifier: Modifier = Modifier) {
     var favourite by rememberSaveable(product.id) { mutableStateOf(false) }
     var added by rememberSaveable(product.id) { mutableStateOf(false) }
     var quantity by rememberSaveable(product.id) { mutableStateOf(MIN_BASKET_QUANTITY) }
+    var sheetOpen by rememberSaveable(product.id) { mutableStateOf(false) }
+    var selectedSize by rememberSaveable(product.id) { mutableStateOf<String?>(null) }
     val canBuy = product.inStock && !added
 
     Column(
@@ -431,12 +495,133 @@ private fun BasketBar(product: Product, modifier: Modifier = Modifier) {
                     },
                     enabled = canBuy,
                     emphasized = product.inStock,
-                    onClick = { added = true },
+                    onClick = {
+                        if (product.sizes.isEmpty()) {
+                            added = true
+                        } else {
+                            selectedSize = null
+                            sheetOpen = true
+                        }
+                    },
                     modifier = Modifier.weight(1f),
                 )
             }
         }
     }
+
+    if (sheetOpen) {
+        ModalBottomSheet(
+            onDismissRequest = { sheetOpen = false },
+            containerColor = MaterialTheme.colorScheme.surface,
+        ) {
+            SizePickerSheet(
+                product = product,
+                quantity = quantity,
+                selectedSize = selectedSize,
+                onSizeSelected = { selectedSize = it },
+                onAdd = {
+                    added = true
+                    sheetOpen = false
+                },
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun SizePickerSheet(
+    product: Product,
+    quantity: Int,
+    selectedSize: String?,
+    onSizeSelected: (String) -> Unit,
+    onAdd: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .navigationBarsPadding()
+            .padding(horizontal = 20.dp)
+            .padding(bottom = 20.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        Text(
+            text = product.title,
+            style = MaterialTheme.typography.titleLarge,
+            color = MaterialTheme.colorScheme.onBackground,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Text(
+            text = stringResource(R.string.detail_sizes),
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onBackground,
+        )
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            product.sizes.forEach { size ->
+                SelectableSizeChip(
+                    size = size,
+                    selected = size.size == selectedSize,
+                    onClick = { onSizeSelected(size.size) },
+                )
+            }
+        }
+        Text(
+            text = stringResource(R.string.sheet_quantity, quantity),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        BasketButton(
+            label = stringResource(R.string.action_add_to_basket),
+            enabled = selectedSize != null,
+            emphasized = selectedSize != null,
+            onClick = onAdd,
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
+}
+
+@Composable
+private fun SelectableSizeChip(
+    size: SizeAvailability,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val inStock = size.inStock
+    val description = stringResource(R.string.action_select_size, size.size)
+    Text(
+        text = size.size,
+        style = MaterialTheme.typography.labelLarge,
+        fontWeight = FontWeight.Medium,
+        color = when {
+            selected -> MaterialTheme.colorScheme.onPrimary
+            inStock -> MaterialTheme.colorScheme.onSurface
+            else -> MaterialTheme.colorScheme.onSurfaceVariant
+        },
+        textDecoration = if (inStock) null else TextDecoration.LineThrough,
+        modifier = modifier
+            .clip(CircleShape)
+            .then(
+                when {
+                    selected -> Modifier.background(MaterialTheme.colorScheme.primary)
+                    inStock -> Modifier.border(1.dp, MaterialTheme.colorScheme.onSurface, CircleShape)
+                    else -> Modifier.border(1.dp, MaterialTheme.colorScheme.outline, CircleShape)
+                },
+            )
+            .clickable(enabled = inStock, onClick = onClick)
+            .semantics {
+                role = Role.RadioButton
+                this.selected = selected
+                contentDescription = description
+            }
+            .padding(horizontal = 14.dp, vertical = 8.dp),
+    )
 }
 
 @Composable

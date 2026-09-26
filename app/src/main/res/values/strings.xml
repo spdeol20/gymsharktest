@@ -28,11 +28,13 @@
 
     <string name="detail_not_found">We could not find that product.</string>
     <string name="detail_screen_title">Details</string>
-    <string name="detail_sizes">Sizes</string>
+    <string name="detail_sizes">Available sizes</string>
     <string name="price_label">Price</string>
     <string name="action_decrease_quantity">Decrease quantity</string>
     <string name="action_increase_quantity">Increase quantity</string>
     <string name="action_add_to_basket">Add to basket</string>
+    <string name="sheet_quantity">Quantity · %1$d</string>
+    <string name="action_select_size">Select size %1$s</string>
     <string name="action_added_to_basket">Added</string>
     <string name="action_add_favourite">Add to favourites</string>
     <string name="action_remove_favourite">Remove from favourites</string>
@@ -47,6 +49,9 @@
     <string name="report_title">Report this product?</string>
     <string name="report_body">Use this if the details look wrong. The note stays on this device.</string>
     <string name="detail_description">Description</string>
+    <string name="detail_delivery">Delivery &amp; returns</string>
+    <string name="detail_description_empty">This product has no description.</string>
+    <string name="detail_delivery_body">This catalogue does not include delivery and returns information.</string>
 
     <string name="image_missing">No image available</string>
     <string name="product_image_of">Photo of %1$s</string>
