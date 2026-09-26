@@ -1,6 +1,4 @@
-package com.example.gymsharktest.ui.products
-
-import com.example.gymsharktest.model.Product
+package com.example.gymsharktest.model
 
 /** How the shop grid is ordered. The featured carousel is never sorted by this. */
 enum class CatalogueSort {

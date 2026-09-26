@@ -19,7 +19,9 @@
     <string name="error_parsing">We could not read the catalogue right now.</string>
     <string name="error_empty">The catalogue is empty right now.</string>
     <string name="error_unexpected">Something went wrong. Try again.</string>
-    <string name="error_stale">Showing saved products. Pull to refresh.</string>
+    <string name="error_stale_offline_title">No internet connection</string>
+    <string name="error_stale_offline_body">Check your connection and pull down to refresh.</string>
+    <string name="error_stale_retry">Pull down to try again.</string>
 
     <string name="empty_title">Nothing to show</string>
     <string name="empty_body">There are no products in the catalogue yet.</string>

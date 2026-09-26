@@ -1,6 +1,8 @@
 package com.example.gymsharktest.ui.products
 
+import com.example.gymsharktest.model.CatalogueSort
 import com.example.gymsharktest.model.Price
+import com.example.gymsharktest.model.sortedFor
 import com.example.gymsharktest.util.testProduct
 import org.junit.Assert.assertEquals
 import org.junit.Test

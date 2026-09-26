@@ -1,18 +1,22 @@
 package com.example.gymsharktest.ui.products
 
+import android.util.Log
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyGridScope
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Sort
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -21,15 +25,17 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.res.stringResource
@@ -37,11 +43,18 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.paging.LoadState
+import androidx.paging.compose.LazyPagingItems
+import androidx.paging.compose.collectAsLazyPagingItems
+import androidx.paging.compose.itemKey
+import com.example.gymsharktest.BuildConfig
 import com.example.gymsharktest.R
+import com.example.gymsharktest.model.CatalogueSort
 import com.example.gymsharktest.model.Price
 import com.example.gymsharktest.model.Product
 import com.example.gymsharktest.model.ProductLabel
 import com.example.gymsharktest.model.SizeAvailability
+import com.example.gymsharktest.model.sortedFor
 import com.example.gymsharktest.ui.components.ErrorState
 import com.example.gymsharktest.ui.components.MessageState
 import com.example.gymsharktest.ui.components.StaleDataBanner
@@ -59,12 +72,24 @@ fun ProductListScreen(
     viewModel: ProductListViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val pagingItems = viewModel.products.collectAsLazyPagingItems()
+
+    if (BuildConfig.DEBUG) {
+        LaunchedEffect(pagingItems.itemCount, pagingItems.loadState) {
+            Log.d(
+                "CataloguePaging",
+                "items=${pagingItems.itemCount} append=${pagingItems.loadState.append}",
+            )
+        }
+    }
 
     ProductListScreen(
         uiState = uiState,
         onProductClick = onProductClick,
         onRefresh = viewModel::refresh,
         onRetry = viewModel::retry,
+        onSortChange = viewModel::onSortChange,
+        pagingItems = pagingItems,
         modifier = modifier,
     )
 }
@@ -80,11 +105,11 @@ fun ProductListScreen(
     onProductClick: (Long) -> Unit,
     onRefresh: () -> Unit,
     onRetry: () -> Unit,
+    onSortChange: (CatalogueSort) -> Unit,
     modifier: Modifier = Modifier,
+    pagingItems: LazyPagingItems<Product>? = null,
+    gridProducts: List<Product> = emptyList(),
 ) {
-    var sort by rememberSaveable { mutableStateOf(CatalogueSort.Catalogue) }
-    val gridProducts = remember(uiState.products, sort) { uiState.products.sortedFor(sort) }
-
     Scaffold(
         modifier = modifier,
         containerColor = MaterialTheme.colorScheme.background,
@@ -97,11 +122,11 @@ fun ProductListScreen(
                             style = MaterialTheme.typography.headlineMedium,
                             fontWeight = FontWeight.Bold,
                         )
-                        if (uiState.products.isNotEmpty()) {
+                        if (uiState.productCount > 0) {
                             Text(
                                 text = stringResource(
                                     R.string.catalogue_subtitle,
-                                    uiState.products.size,
+                                    uiState.productCount,
                                 ),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -110,10 +135,10 @@ fun ProductListScreen(
                     }
                 },
                 actions = {
-                    if (uiState.products.isNotEmpty()) {
+                    if (uiState.productCount > 0) {
                         SortMenu(
-                            sort = sort,
-                            onSortChange = { sort = it },
+                            sort = uiState.sort,
+                            onSortChange = onSortChange,
                         )
                     }
                 },
@@ -144,6 +169,7 @@ fun ProductListScreen(
 
                 else -> ProductGrid(
                     uiState = uiState,
+                    pagingItems = pagingItems,
                     gridProducts = gridProducts,
                     onProductClick = onProductClick,
                 )
@@ -155,6 +181,7 @@ fun ProductListScreen(
 @Composable
 private fun ProductGrid(
     uiState: ProductListUiState,
+    pagingItems: LazyPagingItems<Product>?,
     gridProducts: List<Product>,
     onProductClick: (Long) -> Unit,
     modifier: Modifier = Modifier,
@@ -173,17 +200,18 @@ private fun ProductGrid(
     ) {
         if (uiState.showStaleWarning) {
             item(span = { GridItemSpan(maxLineSpan) }) {
-                StaleDataBanner()
+                StaleDataBanner(error = requireNotNull(uiState.error))
             }
         }
 
         if (uiState.showSkeleton) {
             items(SKELETON_CELL_COUNT) { ProductCardSkeleton() }
         } else {
-            if (featuredLabels(uiState.products).isNotEmpty()) {
+            val featured = featuredLabels(uiState.featured)
+            if (featured.isNotEmpty()) {
                 item(key = "featured-shelf", span = { GridItemSpan(maxLineSpan) }) {
                     FeaturedShelf(
-                        products = uiState.products,
+                        products = uiState.featured,
                         onProductClick = onProductClick,
                         screenInset = GridHorizontalPadding,
                     )
@@ -192,7 +220,7 @@ private fun ProductGrid(
                     Text(
                         text = stringResource(
                             R.string.catalogue_all_products,
-                            uiState.products.size,
+                            uiState.productCount,
                         ),
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.onBackground,
@@ -200,17 +228,57 @@ private fun ProductGrid(
                     )
                 }
             }
-            items(
-                items = gridProducts,
-                // Stable keys keep scroll position and image state across a refresh.
-                key = { product -> product.id },
-            ) { product ->
-                ProductCard(
-                    product = product,
-                    onClick = { onProductClick(product.id) },
-                )
+            if (pagingItems != null) {
+                pagingProductItems(pagingItems, onProductClick)
+            } else {
+                items(
+                    items = gridProducts,
+                    key = { product -> product.id },
+                ) { product ->
+                    ProductCard(
+                        product = product,
+                        onClick = { onProductClick(product.id) },
+                    )
+                }
             }
         }
+    }
+}
+
+private fun LazyGridScope.pagingProductItems(
+    pagingItems: LazyPagingItems<Product>,
+    onProductClick: (Long) -> Unit,
+) {
+    if (pagingItems.itemCount == 0) {
+        items(SKELETON_CELL_COUNT) { ProductCardSkeleton() }
+        return
+    }
+    items(
+        count = pagingItems.itemCount,
+        key = pagingItems.itemKey { product -> product.id },
+    ) { index ->
+        val product = pagingItems[index]
+        if (product == null) {
+            ProductCardSkeleton()
+        } else {
+            ProductCard(
+                product = product,
+                onClick = { onProductClick(product.id) },
+            )
+        }
+    }
+    when (val append = pagingItems.loadState.append) {
+        is LoadState.Loading -> item(span = { GridItemSpan(maxLineSpan) }) {
+            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator()
+            }
+        }
+        is LoadState.Error -> item(span = { GridItemSpan(maxLineSpan) }) {
+            TextButton(onClick = pagingItems::retry) {
+                Text(stringResource(R.string.action_retry))
+            }
+        }
+        is LoadState.NotLoading -> Unit
     }
 }
 
@@ -266,11 +334,20 @@ private val CatalogueSort.labelRes: Int
 @Composable
 private fun ProductListPreview() {
     GymsharkTheme {
+        var sort by remember { mutableStateOf(CatalogueSort.Catalogue) }
+        val products = previewProducts()
+        val sorted = remember(products, sort) { products.sortedFor(sort) }
         ProductListScreen(
-            uiState = ProductListUiState(products = previewProducts()),
+            uiState = ProductListUiState(
+                featured = featuredProducts(products, label = null),
+                productCount = products.size,
+                sort = sort,
+            ),
+            gridProducts = sorted,
             onProductClick = {},
             onRefresh = {},
             onRetry = {},
+            onSortChange = { sort = it },
         )
     }
 }

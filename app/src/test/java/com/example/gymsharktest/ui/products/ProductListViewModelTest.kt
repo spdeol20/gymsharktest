@@ -1,6 +1,7 @@
 package com.example.gymsharktest.ui.products
 
 import com.example.gymsharktest.core.AppError
+import com.example.gymsharktest.model.CatalogueSort
 import com.example.gymsharktest.util.FakeProductRepository
 import com.example.gymsharktest.util.MainDispatcherRule
 import com.example.gymsharktest.util.testProduct
@@ -25,7 +26,7 @@ class ProductListViewModelTest {
 
         val state = ProductListViewModel(repository).uiState.value
 
-        assertEquals(products, state.products)
+        assertEquals(2, state.productCount)
         assertFalse(state.isLoading)
         assertEquals(null, state.error)
     }
@@ -60,7 +61,7 @@ class ProductListViewModelTest {
         viewModel.refresh()
 
         val state = viewModel.uiState.value
-        assertEquals(cached, state.products)
+        assertEquals(1, state.productCount)
         assertTrue(state.showStaleWarning)
         assertFalse(state.showFullScreenError)
     }
@@ -87,7 +88,7 @@ class ProductListViewModelTest {
 
         val state = viewModel.uiState.value
         assertEquals(null, state.error)
-        assertEquals(1, state.products.size)
+        assertEquals(1, state.productCount)
     }
 
     @Test
@@ -107,11 +108,22 @@ class ProductListViewModelTest {
     fun `the skeleton shows only while the first load has nothing to display`() {
         val loading = ProductListUiState(isLoading = true)
         val loadingWithCache = ProductListUiState(
-            products = listOf(testProduct()),
+            productCount = 1,
             isLoading = true,
         )
 
         assertTrue(loading.showSkeleton)
         assertFalse(loadingWithCache.showSkeleton)
+    }
+
+    @Test
+    fun `refresh does not reset the selected sort`() = runTest {
+        repository.succeedWith(listOf(testProduct()))
+        val viewModel = ProductListViewModel(repository)
+
+        viewModel.onSortChange(CatalogueSort.PriceHighToLow)
+        viewModel.refresh()
+
+        assertEquals(CatalogueSort.PriceHighToLow, viewModel.uiState.value.sort)
     }
 }

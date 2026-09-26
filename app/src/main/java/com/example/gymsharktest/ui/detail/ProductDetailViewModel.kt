@@ -41,11 +41,13 @@ class ProductDetailViewModel @Inject constructor(
     init {
         viewModelScope.launch {
             // Re-read by id rather than passing the product through the back stack, so the screen
-            // still works from a deep link and survives process death.
-            val product = repository.productById(productId)
-            _uiState.value = product
-                ?.let(ProductDetailUiState::Content)
-                ?: ProductDetailUiState.NotFound
+            // still works from a deep link and survives process death. Room emits again if a
+            // refresh replaces the row while the screen is open.
+            repository.observeProduct(productId).collect { product ->
+                _uiState.value = product
+                    ?.let(ProductDetailUiState::Content)
+                    ?: ProductDetailUiState.NotFound
+            }
         }
     }
 }
