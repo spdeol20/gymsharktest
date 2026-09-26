@@ -1,3 +1,5 @@
 <resources>
-    <string name="app_name">gymsharktest</string>
+    <string name="app_name">Gymshark</string>
+    <string name="placeholder_title">Gymshark</string>
+    <string name="placeholder_body">Toolchain ready. Product catalogue arrives in a later phase.</string>
 </resources>
