@@ -34,7 +34,7 @@ class FeaturedCatalogueTest {
     }
 
     @Test
-    fun `all shows every in-stock featured product and a chip narrows the row only`() {
+    fun `all and a chip keep only the first five in-stock matches`() {
         val soldOutNew = testProduct(id = 1, inStock = false, labels = listOf(ProductLabel.New))
         val fresh = testProduct(id = 2, labels = listOf(ProductLabel.New))
         val limited = testProduct(id = 3, labels = listOf(ProductLabel.LimitedEdition))
@@ -43,5 +43,14 @@ class FeaturedCatalogueTest {
 
         assertEquals(listOf(fresh, limited), featuredProducts(products, label = null))
         assertEquals(listOf(fresh), featuredProducts(products, label = ProductLabel.New))
+    }
+
+    @Test
+    fun `the featured row stops after five products`() {
+        val products = (1..6).map { id ->
+            testProduct(id = id.toLong(), labels = listOf(ProductLabel.New))
+        }
+
+        assertEquals(listOf(1L, 2L, 3L, 4L, 5L), featuredProducts(products, ProductLabel.New).map { it.id })
     }
 }

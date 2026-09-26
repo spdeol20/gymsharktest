@@ -7,7 +7,7 @@ import com.example.gymsharktest.data.repository.ProductRepository
 import com.example.gymsharktest.model.CatalogueSort
 import com.example.gymsharktest.model.Product
 import com.example.gymsharktest.model.sortedFor
-import com.example.gymsharktest.ui.products.featuredProducts
+import com.example.gymsharktest.ui.products.shelfKey
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
@@ -29,12 +29,17 @@ class FakeProductRepository(
         private set
 
     override fun observeFeatured(): Flow<List<Product>> =
-        cache.map { products -> featuredProducts(products, label = null) }
+        cache.map { products ->
+            products.filter { it.inStock && it.merchandisingLabels.isNotEmpty() }
+        }
 
     override fun observeProductCount(): Flow<Int> = cache.map { it.size }
 
-    override fun pagedProducts(sort: CatalogueSort): Flow<PagingData<Product>> =
-        cache.map { products -> PagingData.from(products.sortedFor(sort)) }
+    override fun observeGridCount(labelKey: String?): Flow<Int> =
+        cache.map { products -> products.matching(labelKey).size }
+
+    override fun pagedProducts(sort: CatalogueSort, labelKey: String?): Flow<PagingData<Product>> =
+        cache.map { products -> PagingData.from(products.matching(labelKey).sortedFor(sort)) }
 
     override fun observeProduct(id: Long): Flow<Product?> =
         cache.map { products -> products.firstOrNull { it.id == id } }
@@ -57,4 +62,11 @@ class FakeProductRepository(
     fun failWith(error: AppError) {
         nextRefresh = AppResult.Failure(error)
     }
+
+    private fun List<Product>.matching(labelKey: String?): List<Product> =
+        if (labelKey.isNullOrEmpty()) {
+            this
+        } else {
+            filter { product -> product.labels.any { it.shelfKey() == labelKey } }
+        }
 }

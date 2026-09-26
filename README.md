@@ -15,7 +15,7 @@ CDN JSON  ->  ProductRemoteDataSource  ->  ProductMapper  ->  Room
 ```
 
 - The network call replaces the Room table. A failed refresh leaves the previous rows in place, and the grid shows a stale-data warning instead of going blank.
-- The All products grid pages out of Room (20 per page). Pages away from the viewport are dropped. The featured carousel is a separate query, so chip filtering does not depend on which page is loaded, and the chips never filter the grid.
+- The All products grid pages out of Room (20 per page). Pages away from the viewport are dropped. The featured row shows at most five in-stock products. Choosing a label keeps those five in the row and filters the grid to every product with that label.
 - Sort (catalogue order, price low to high, price high to low) is an `ORDER BY` on that paging query. The choice is kept in the list screen's saved state, so pull-to-refresh and rotation do not reset it. Equal prices keep catalogue order.
 - Detail reads the product by id from Room, so the screen still works after process death without putting the product on the back stack.
 

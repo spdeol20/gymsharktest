@@ -55,6 +55,7 @@ import com.example.gymsharktest.model.Product
 import com.example.gymsharktest.model.ProductLabel
 import com.example.gymsharktest.model.SizeAvailability
 import com.example.gymsharktest.model.sortedFor
+import com.example.gymsharktest.ui.components.displayText
 import com.example.gymsharktest.ui.components.ErrorState
 import com.example.gymsharktest.ui.components.MessageState
 import com.example.gymsharktest.ui.components.StaleDataBanner
@@ -89,6 +90,7 @@ fun ProductListScreen(
         onRefresh = viewModel::refresh,
         onRetry = viewModel::retry,
         onSortChange = viewModel::onSortChange,
+        onLabelChange = viewModel::onLabelChange,
         pagingItems = pagingItems,
         modifier = modifier,
     )
@@ -106,6 +108,7 @@ fun ProductListScreen(
     onRefresh: () -> Unit,
     onRetry: () -> Unit,
     onSortChange: (CatalogueSort) -> Unit,
+    onLabelChange: (String?) -> Unit,
     modifier: Modifier = Modifier,
     pagingItems: LazyPagingItems<Product>? = null,
     gridProducts: List<Product> = emptyList(),
@@ -126,7 +129,7 @@ fun ProductListScreen(
                             Text(
                                 text = stringResource(
                                     R.string.catalogue_subtitle,
-                                    uiState.productCount,
+                                    if (uiState.labelKey == null) uiState.productCount else uiState.gridCount,
                                 ),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -172,6 +175,7 @@ fun ProductListScreen(
                     pagingItems = pagingItems,
                     gridProducts = gridProducts,
                     onProductClick = onProductClick,
+                    onLabelChange = onLabelChange,
                 )
             }
         }
@@ -184,6 +188,7 @@ private fun ProductGrid(
     pagingItems: LazyPagingItems<Product>?,
     gridProducts: List<Product>,
     onProductClick: (Long) -> Unit,
+    onLabelChange: (String?) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     LazyVerticalGrid(
@@ -212,16 +217,25 @@ private fun ProductGrid(
                 item(key = "featured-shelf", span = { GridItemSpan(maxLineSpan) }) {
                     FeaturedShelf(
                         products = uiState.featured,
+                        selectedKey = uiState.labelKey,
+                        onLabelChange = onLabelChange,
                         onProductClick = onProductClick,
                         screenInset = GridHorizontalPadding,
                     )
                 }
                 item(key = "all-products-heading", span = { GridItemSpan(maxLineSpan) }) {
+                    val selected = featured.firstOrNull { it.shelfKey() == uiState.labelKey }
+                    val shownCount = if (selected == null) uiState.productCount else uiState.gridCount
                     Text(
-                        text = stringResource(
-                            R.string.catalogue_all_products,
-                            uiState.productCount,
-                        ),
+                        text = if (selected == null) {
+                            stringResource(R.string.catalogue_all_products, shownCount)
+                        } else {
+                            stringResource(
+                                R.string.catalogue_filtered_products,
+                                selected.displayText(),
+                                shownCount,
+                            )
+                        },
                         style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.onBackground,
                         modifier = Modifier.padding(top = 20.dp),
@@ -337,19 +351,28 @@ private val CatalogueSort.labelRes: Int
 private fun ProductListPreview() {
     GymsharkTheme {
         var sort by remember { mutableStateOf(CatalogueSort.Catalogue) }
+        var labelKey by remember { mutableStateOf<String?>(null) }
         val products = previewProducts()
-        val sorted = remember(products, sort) { products.sortedFor(sort) }
+        val selected = featuredLabels(products).firstOrNull { it.shelfKey() == labelKey }
+        val grid = remember(products, sort, selected) {
+            products
+                .filter { selected == null || selected in it.labels }
+                .sortedFor(sort)
+        }
         ProductListScreen(
             uiState = ProductListUiState(
-                featured = featuredProducts(products, label = null),
+                featured = products.filter { it.inStock && it.merchandisingLabels.isNotEmpty() },
                 productCount = products.size,
+                gridCount = grid.size,
+                labelKey = labelKey,
                 sort = sort,
             ),
-            gridProducts = sorted,
+            gridProducts = grid,
             onProductClick = {},
             onRefresh = {},
             onRetry = {},
             onSortChange = { sort = it },
+            onLabelChange = { labelKey = it },
         )
     }
 }

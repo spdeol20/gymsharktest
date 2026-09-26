@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -25,6 +26,8 @@ import kotlinx.coroutines.launch
 data class ProductListUiState(
     val featured: List<Product> = emptyList(),
     val productCount: Int = 0,
+    val gridCount: Int = 0,
+    val labelKey: String? = null,
     val sort: CatalogueSort = CatalogueSort.Catalogue,
     val isLoading: Boolean = false,
     val isRefreshing: Boolean = false,
@@ -54,9 +57,13 @@ class ProductListViewModel @Inject constructor(
      * Pages follow the saved sort. Refresh replaces the table and leaves this choice alone, so a
      * pull-to-refresh does not jump the shopper back to catalogue order.
      */
-    val products: Flow<PagingData<Product>> = savedStateHandle
-        .getStateFlow(SORT_KEY, CatalogueSort.Catalogue.name)
-        .flatMapLatest { name -> repository.pagedProducts(CatalogueSort.valueOf(name)) }
+    val products: Flow<PagingData<Product>> = combine(
+        savedStateHandle.getStateFlow(SORT_KEY, CatalogueSort.Catalogue.name),
+        savedStateHandle.getStateFlow(LABEL_KEY, ""),
+    ) { sort, label -> sort to label }
+        .flatMapLatest { (sort, label) ->
+            repository.pagedProducts(CatalogueSort.valueOf(sort), label.ifEmpty { null })
+        }
         .cachedIn(viewModelScope)
 
     init {
@@ -72,10 +79,19 @@ class ProductListViewModel @Inject constructor(
         savedStateHandle[SORT_KEY] = sort.name
     }
 
+    fun onLabelChange(labelKey: String?) {
+        savedStateHandle[LABEL_KEY] = labelKey.orEmpty()
+    }
+
     private fun observeCache() {
         viewModelScope.launch {
             savedStateHandle.getStateFlow(SORT_KEY, CatalogueSort.Catalogue.name).collect { name ->
                 _uiState.update { it.copy(sort = CatalogueSort.valueOf(name)) }
+            }
+        }
+        viewModelScope.launch {
+            savedStateHandle.getStateFlow(LABEL_KEY, "").collect { saved ->
+                _uiState.update { it.copy(labelKey = saved.ifEmpty { null }) }
             }
         }
         viewModelScope.launch {
@@ -84,8 +100,19 @@ class ProductListViewModel @Inject constructor(
             }
         }
         viewModelScope.launch {
+            savedStateHandle.getStateFlow(LABEL_KEY, "")
+                .flatMapLatest { saved -> repository.observeGridCount(saved.ifEmpty { null }) }
+                .collect { count ->
+                    _uiState.update { it.copy(gridCount = count) }
+                }
+        }
+        viewModelScope.launch {
             repository.observeFeatured().collect { featured ->
                 _uiState.update { it.copy(featured = featured) }
+                val key = savedStateHandle.get<String>(LABEL_KEY).orEmpty()
+                if (key.isNotEmpty() && featured.none { product -> product.labels.any { it.shelfKey() == key } }) {
+                    savedStateHandle[LABEL_KEY] = ""
+                }
             }
         }
     }
@@ -114,5 +141,6 @@ class ProductListViewModel @Inject constructor(
 
     private companion object {
         const val SORT_KEY = "catalogue_sort"
+        const val LABEL_KEY = "catalogue_label"
     }
 }

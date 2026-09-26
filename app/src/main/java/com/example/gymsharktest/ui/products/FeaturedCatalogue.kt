@@ -50,9 +50,12 @@ fun featuredLabels(products: List<Product>): List<ProductLabel> {
     return ordered + extras
 }
 
+/** How many cards the featured row shows. The grid below carries the rest. */
+const val FEATURED_ROW_LIMIT = 5
+
 /**
- * In-stock products for the shelf. A null label is the All chip: any merchandising label qualifies.
- * The grid underneath is never filtered by this.
+ * The first [FEATURED_ROW_LIMIT] in-stock products for the shelf.
+ * A null label is the All chip: any merchandising label qualifies.
  */
 fun featuredProducts(products: List<Product>, label: ProductLabel?): List<Product> =
     products.filter { product ->
@@ -61,4 +64,4 @@ fun featuredProducts(products: List<Product>, label: ProductLabel?): List<Produc
         } else {
             label in product.merchandisingLabels
         }
-    }
+    }.take(FEATURED_ROW_LIMIT)

@@ -39,12 +39,29 @@ class ProductRepositoryImpl @Inject constructor(
 
     override fun observeProductCount(): Flow<Int> = dao.observeCount()
 
-    override fun pagedProducts(sort: CatalogueSort): Flow<PagingData<Product>> =
+    override fun observeGridCount(labelKey: String?): Flow<Int> {
+        val label = LabelMatch.fromShelfKey(labelKey)
+        return if (label == null) {
+            dao.observeCount()
+        } else {
+            dao.observeCountByLabel(label.key, label.text)
+        }
+    }
+
+    override fun pagedProducts(sort: CatalogueSort, labelKey: String?): Flow<PagingData<Product>> =
         Pager(PAGING) {
-            when (sort) {
-                CatalogueSort.Catalogue -> dao.pagingCatalogue()
-                CatalogueSort.PriceLowToHigh -> dao.pagingPriceAsc()
-                CatalogueSort.PriceHighToLow -> dao.pagingPriceDesc()
+            val label = LabelMatch.fromShelfKey(labelKey)
+            when {
+                label == null -> when (sort) {
+                    CatalogueSort.Catalogue -> dao.pagingCatalogue()
+                    CatalogueSort.PriceLowToHigh -> dao.pagingPriceAsc()
+                    CatalogueSort.PriceHighToLow -> dao.pagingPriceDesc()
+                }
+                else -> when (sort) {
+                    CatalogueSort.Catalogue -> dao.pagingCatalogueByLabel(label.key, label.text)
+                    CatalogueSort.PriceLowToHigh -> dao.pagingPriceAscByLabel(label.key, label.text)
+                    CatalogueSort.PriceHighToLow -> dao.pagingPriceDescByLabel(label.key, label.text)
+                }
             }
         }.flow.map { page -> page.map(mapper::toProduct) }
 
@@ -61,6 +78,46 @@ class ProductRepositoryImpl @Inject constructor(
             }
             // Deliberately does not clear the table: stale products beat an empty screen.
             is AppResult.Failure -> result
+        }
+    }
+
+    private data class LabelMatch(val key: String, val text: String) {
+        companion object {
+            fun fromShelfKey(shelfKey: String?): LabelMatch? {
+                if (shelfKey.isNullOrEmpty()) return null
+                return if (shelfKey.startsWith(UNKNOWN_PREFIX)) {
+                    val text = shelfKey.removePrefix(UNKNOWN_PREFIX)
+                    LabelMatch(key = "unknown", text = likeLiteral(jsonStringContent(text)))
+                } else {
+                    LabelMatch(key = likeLiteral(shelfKey), text = "")
+                }
+            }
+
+            private const val UNKNOWN_PREFIX = "unknown:"
+
+            /** Encodes [raw] the way kotlinx JSON writes a string, so the LIKE matches the column. */
+            private fun jsonStringContent(raw: String): String = buildString {
+                for (character in raw) {
+                    when (character) {
+                        '\\' -> append("\\\\")
+                        '"' -> append("\\\"")
+                        '\n' -> append("\\n")
+                        '\r' -> append("\\r")
+                        '\t' -> append("\\t")
+                        else -> append(character)
+                    }
+                }
+            }
+
+            /** Stops `%`, `_`, and `\` in a label from acting as LIKE wildcards. */
+            private fun likeLiteral(raw: String): String = buildString {
+                for (character in raw) {
+                    when (character) {
+                        '\\', '%', '_' -> append('\\').append(character)
+                        else -> append(character)
+                    }
+                }
+            }
         }
     }
 

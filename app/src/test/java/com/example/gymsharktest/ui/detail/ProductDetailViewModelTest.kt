@@ -1,6 +1,9 @@
 package com.example.gymsharktest.ui.detail
 
+import android.app.Application
 import androidx.lifecycle.SavedStateHandle
+import androidx.navigation.testing.invoke
+import com.example.gymsharktest.ui.navigation.ProductDetailRoute
 import com.example.gymsharktest.util.FakeProductRepository
 import com.example.gymsharktest.util.MainDispatcherRule
 import com.example.gymsharktest.util.testProduct
@@ -9,18 +12,23 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [31], application = Application::class)
 class ProductDetailViewModelTest {
 
     @get:Rule
     val mainDispatcherRule = MainDispatcherRule()
 
     /**
-     * The route is a `@Serializable` data class with a single `productId`, so navigation stores it
-     * in the handle under that name. Building the handle directly keeps the test free of a
-     * NavController.
+     * Navigation writes the route through a Bundle. A hand-built map never reaches that Bundle, so
+     * [androidx.navigation.toRoute] crashes in a plain unit test. This helper writes the route the
+     * same way navigation does, and Robolectric supplies the Bundle.
      */
-    private fun handleFor(productId: Long) = SavedStateHandle(mapOf("productId" to productId))
+    private fun handleFor(productId: Long) = SavedStateHandle(ProductDetailRoute(productId))
 
     @Test
     fun `an id in the catalogue resolves to content`() = runTest {

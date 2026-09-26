@@ -1,6 +1,7 @@
 package com.example.gymsharktest.ui.detail
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.MutableTransitionState
@@ -100,6 +101,7 @@ import com.example.gymsharktest.ui.components.displayText
 import com.example.gymsharktest.ui.text.rememberHtmlDescription
 
 private const val MEDIA_ASPECT_RATIO = 0.92f
+private const val WASH_ALPHA = 0.42f
 private val TabletMinWidth = 600.dp
 private const val DETAIL_IMAGE_WIDTH_PX = 1080
 private val ImageShape = RoundedCornerShape(28.dp)
@@ -218,24 +220,43 @@ private fun BackButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
 @Composable
 private fun DetailContent(product: Product, modifier: Modifier = Modifier) {
     val landscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
+    val wash = rememberImageWash(product.featuredImage?.url)
+    val washColor by animateColorAsState(
+        targetValue = wash?.toComposeColor()?.copy(alpha = WASH_ALPHA) ?: Color.Transparent,
+        animationSpec = tween(280),
+        label = "image-wash",
+    )
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
-        val sideBySide = landscape || maxWidth >= TabletMinWidth
-        if (sideBySide) {
-            SideBySideDetail(product = product, imageMaxWidth = maxWidth * 0.5f)
-        } else {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .verticalScroll(rememberScrollState()),
-            ) {
-                MediaCarousel(
-                    product = product,
-                    modifier = Modifier.padding(horizontal = 16.dp),
-                )
-                ProductSheet(
-                    product = product,
-                    modifier = Modifier.padding(top = 18.dp),
-                )
+        val availableWidth = maxWidth
+        val sideBySide = landscape || availableWidth >= TabletMinWidth
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .then(
+                    if (washColor.alpha == 0f) {
+                        Modifier
+                    } else {
+                        Modifier.background(imageWashBrush(washColor, sideBySide))
+                    },
+                ),
+        ) {
+            if (sideBySide) {
+                SideBySideDetail(product = product, imageMaxWidth = availableWidth * 0.5f)
+            } else {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState()),
+                ) {
+                    MediaCarousel(
+                        product = product,
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                    )
+                    ProductSheet(
+                        product = product,
+                        modifier = Modifier.padding(top = 18.dp),
+                    )
+                }
             }
         }
     }

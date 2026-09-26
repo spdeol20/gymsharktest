@@ -20,10 +20,17 @@ interface ProductRepository {
     fun observeProductCount(): Flow<Int>
 
     /**
-     * Pages of the full catalogue. [sort] changes the query, not the stored order, so a refresh
-     * can replace the rows without forgetting how the shopper asked to see them.
+     * How many products the grid is showing. A null [labelKey] is the whole catalogue. A shelf key
+     * counts every product carrying that label, including ones that are sold out.
      */
-    fun pagedProducts(sort: CatalogueSort): Flow<PagingData<Product>>
+    fun observeGridCount(labelKey: String?): Flow<Int>
+
+    /**
+     * Pages of the catalogue. [sort] changes the query, not the stored order, so a refresh can
+     * replace the rows without forgetting how the shopper asked to see them. A [labelKey] limits
+     * the pages to that merchandising label; null keeps the full catalogue.
+     */
+    fun pagedProducts(sort: CatalogueSort, labelKey: String?): Flow<PagingData<Product>>
 
     fun observeProduct(id: Long): Flow<Product?>
 

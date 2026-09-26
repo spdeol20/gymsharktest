@@ -2,6 +2,7 @@ package com.example.gymsharktest.ui.products
 
 import com.example.gymsharktest.core.AppError
 import com.example.gymsharktest.model.CatalogueSort
+import com.example.gymsharktest.model.ProductLabel
 import com.example.gymsharktest.util.FakeProductRepository
 import com.example.gymsharktest.util.MainDispatcherRule
 import com.example.gymsharktest.util.testProduct
@@ -125,5 +126,16 @@ class ProductListViewModelTest {
         viewModel.refresh()
 
         assertEquals(CatalogueSort.PriceHighToLow, viewModel.uiState.value.sort)
+    }
+
+    @Test
+    fun `refresh does not reset the selected label`() = runTest {
+        repository.succeedWith(listOf(testProduct(labels = listOf(ProductLabel.New))))
+        val viewModel = ProductListViewModel(repository)
+
+        viewModel.onLabelChange(ProductLabel.New.shelfKey())
+        viewModel.refresh()
+
+        assertEquals(ProductLabel.New.shelfKey(), viewModel.uiState.value.labelKey)
     }
 }

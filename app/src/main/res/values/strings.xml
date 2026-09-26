@@ -6,6 +6,7 @@
     <string name="featured_title">Featured</string>
     <string name="featured_all">All</string>
     <string name="catalogue_all_products">All products · %1$d</string>
+    <string name="catalogue_filtered_products">%1$s · %2$d</string>
     <string name="sort_products">Sort</string>
     <string name="sort_catalogue">Catalogue order</string>
     <string name="sort_price_low">Price: low to high</string>

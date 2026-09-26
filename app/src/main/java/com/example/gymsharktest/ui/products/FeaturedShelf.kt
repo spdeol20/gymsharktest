@@ -29,11 +29,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.key
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -89,25 +86,21 @@ private const val HERO_ASPECT_RATIO = 1.15f
 private const val HERO_WIDTH_FRACTION = 0.86f
 
 /**
- * A merchandising row above the catalogue. Chips change this carousel only.
+ * A merchandising row above the catalogue. Chips also filter the grid below.
  * Renders nothing when no in-stock product carries a merchandising label.
  */
 @Composable
 fun FeaturedShelf(
     products: List<Product>,
+    selectedKey: String?,
+    onLabelChange: (String?) -> Unit,
     onProductClick: (Long) -> Unit,
     modifier: Modifier = Modifier,
     screenInset: Dp = 20.dp,
 ) {
-    var selectedKey by rememberSaveable { mutableStateOf<String?>(null) }
     val labels = featuredLabels(products)
     val selected = labels.firstOrNull { it.shelfKey() == selectedKey }
     val featured = featuredProducts(products, selected)
-    val rowState = rememberLazyListState()
-
-    LaunchedEffect(selectedKey) {
-        rowState.animateScrollToItem(0)
-    }
 
     Column(
         modifier = modifier
@@ -129,42 +122,47 @@ fun FeaturedShelf(
                 ShelfChip(
                     text = stringResource(R.string.featured_all),
                     selected = selected == null,
-                    onClick = { selectedKey = null },
+                    onClick = { onLabelChange(null) },
                 )
             }
             items(labels, key = { it.shelfKey() }) { label ->
                 ShelfChip(
                     text = label.displayText(),
                     selected = label == selected,
-                    onClick = { selectedKey = label.shelfKey() },
+                    onClick = { onLabelChange(label.shelfKey()) },
                 )
             }
         }
 
         BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
             val cardWidth = maxWidth * HERO_WIDTH_FRACTION
-            LazyRow(
-                state = rowState,
-                flingBehavior = rememberSnapFlingBehavior(rowState),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                contentPadding = PaddingValues(end = maxWidth - cardWidth),
-            ) {
-                itemsIndexed(featured, key = { _, product -> product.id }) { index, product ->
-                    val focus = rowState.focusOf(index)
-                    FeaturedHeroCard(
-                        product = product,
-                        selectedLabel = selected,
-                        onClick = { onProductClick(product.id) },
-                        modifier = Modifier
-                            .width(cardWidth)
-                            .animateItem()
-                            .graphicsLayer {
-                                val scale = 0.94f + (0.06f * focus)
-                                scaleX = scale
-                                scaleY = scale
-                                alpha = 0.78f + (0.22f * focus)
-                            },
-                    )
+            // A new row per chip. Reusing the old scroll position can land in the empty
+            // padding after the last card, so All looks blank.
+            key(selectedKey) {
+                val rowState = rememberLazyListState()
+                LazyRow(
+                    state = rowState,
+                    flingBehavior = rememberSnapFlingBehavior(rowState),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    contentPadding = PaddingValues(end = maxWidth - cardWidth),
+                ) {
+                    itemsIndexed(featured, key = { _, product -> product.id }) { index, product ->
+                        val focus = rowState.focusOf(index)
+                        FeaturedHeroCard(
+                            product = product,
+                            selectedLabel = selected,
+                            onClick = { onProductClick(product.id) },
+                            modifier = Modifier
+                                .width(cardWidth)
+                                .animateItem()
+                                .graphicsLayer {
+                                    val scale = 0.94f + (0.06f * focus)
+                                    scaleX = scale
+                                    scaleY = scale
+                                    alpha = 0.78f + (0.22f * focus)
+                                },
+                        )
+                    }
                 }
             }
         }
