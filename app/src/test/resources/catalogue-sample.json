@@ -1,0 +1,149 @@
+{
+  "hits": [
+    {
+      "id": 6732609257571,
+      "sku": "B3A3E",
+      "inStock": true,
+      "sizeInStock": ["xs", "l"],
+      "availableSizes": [
+        { "id": 39814344835171, "inStock": true, "inventoryQuantity": 1, "price": 1000, "size": "xs", "sku": "B3A3E-UBCY-XS" },
+        { "id": 39814344867939, "inStock": false, "inventoryQuantity": 0, "price": 1000, "size": "s", "sku": "B3A3E-UBCY-S" },
+        { "id": 39814344966243, "inventoryQuantity": 3, "price": 1000, "size": "l", "sku": "B3A3E-UBCY-L" }
+      ],
+      "handle": "gymshark-speed-leggings-navy-ss22",
+      "title": "Speed Leggings",
+      "description": "<p><strong>RUN WITH IT</strong></p>",
+      "type": "Womens Leggings",
+      "gender": ["f"],
+      "fit": null,
+      "labels": null,
+      "colour": "Navy",
+      "price": 1000,
+      "compareAtPrice": 2000,
+      "discountPercentage": null,
+      "featuredMedia": {
+        "admin_graphql_api_id": "gid://shopify/ProductImage/29035954831459",
+        "alt": null,
+        "height": 2018,
+        "id": 29035954831459,
+        "position": 1,
+        "src": "https://cdn.shopify.com/s/files/1/1326/4923/products/featured.jpg?v=1649254794",
+        "width": 1692
+      },
+      "media": [
+        { "id": 3, "position": 3, "src": "https://cdn.shopify.com/s/files/third.jpg", "width": 1692, "height": 2018 },
+        { "id": 2, "position": 2, "src": "https://cdn.shopify.com/s/files/second.jpg", "width": 1692, "height": 2018 },
+        { "id": 1, "position": 1, "src": "https://cdn.shopify.com/s/files/1/1326/4923/products/featured.jpg?v=1649254794", "width": 1692, "height": 2018 }
+      ],
+      "objectID": "6732609257571"
+    },
+    {
+      "id": 1002,
+      "sku": "NOIMG",
+      "title": "Product With No Media At All",
+      "description": "<p>No pictures.</p>",
+      "colour": "Black",
+      "price": 2500,
+      "inStock": false,
+      "labels": null,
+      "featuredMedia": null,
+      "media": null
+    },
+    {
+      "id": 1003,
+      "sku": "BADIMG",
+      "title": "Product With Unusable Media",
+      "price": 999,
+      "inStock": true,
+      "featuredMedia": { "src": "http://cdn.shopify.com/insecure.jpg", "width": 100, "height": 200 },
+      "media": [
+        { "src": "   ", "width": 100, "height": 200 },
+        { "src": null },
+        { "src": "not a url at all", "width": 0, "height": 0 },
+        { "src": "ftp://cdn.shopify.com/wrong-protocol.jpg" },
+        { "src": "https:///no-host.jpg" }
+      ]
+    },
+    {
+      "id": 1004,
+      "sku": "LABELSTR",
+      "title": "Product With String Labels",
+      "price": 1500,
+      "labels": ["New", "  ", "Limited Edition", "coming-soon", "New"]
+    },
+    {
+      "id": 1005,
+      "sku": "LABELOBJ",
+      "title": "Product With Object Labels",
+      "price": 1500,
+      "labels": [{ "name": "Back In Stock" }, { "unexpectedKey": "ignored" }, { "label": "SALE" }]
+    },
+    {
+      "id": 1006,
+      "sku": "NOTITLE",
+      "title": "   ",
+      "price": 1500
+    },
+    {
+      "sku": "NOID",
+      "title": "Product Missing An Id",
+      "price": 1500
+    },
+    {
+      "id": 1008,
+      "sku": "NOPRICE",
+      "title": "Product Missing A Price",
+      "price": null
+    },
+    {
+      "id": 1009,
+      "sku": "BADTYPE",
+      "title": "Product Whose Price Changed Shape",
+      "price": { "amount": 1500, "currency": "GBP" }
+    },
+    {
+      "id": 1010,
+      "sku": "MINIMAL",
+      "title": "Minimal Product",
+      "price": 0,
+      "brandNewFieldTheApiAddedToday": { "nested": ["anything", 1, true] }
+    },
+    {
+      "id": 1011,
+      "sku": "STALEFLAG",
+      "title": "Product Flag Says In Stock",
+      "price": 1000,
+      "inStock": true,
+      "availableSizes": [
+        { "inStock": false, "inventoryQuantity": -1, "size": "s" },
+        { "inStock": false, "inventoryQuantity": -1, "size": "m" }
+      ]
+    },
+    {
+      "id": 1012,
+      "sku": "LIESOLD",
+      "title": "Product Flag Says Sold Out",
+      "price": 1000,
+      "inStock": false,
+      "availableSizes": [
+        { "inStock": false, "inventoryQuantity": 0, "size": "s" },
+        { "inStock": true, "inventoryQuantity": 2, "size": "m" }
+      ]
+    },
+    {
+      "id": 1013,
+      "sku": "B1A2J",
+      "title": "All Sizes Out Of Stock",
+      "price": 1000,
+      "inStock": false,
+      "sizeInStock": null,
+      "availableSizes": [
+        { "inStock": false, "inventoryQuantity": -1, "size": "xs" },
+        { "inStock": false, "inventoryQuantity": -1, "size": "s" }
+      ]
+    }
+  ],
+  "nbHits": 10,
+  "page": 0,
+  "someFutureTopLevelField": "ignored"
+}

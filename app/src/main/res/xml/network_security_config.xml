@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Release trusts the platform CAs only. Cleartext is refused here as well as in the manifest
+  and by OkHttp's restricted TLS spec. User-installed certificates are allowed in the debug
+  source set so a proxy can be used while developing, and nowhere else.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>
