@@ -1,5 +1,7 @@
 package com.example.gymsharktest.ui.products
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -15,8 +17,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
@@ -33,6 +37,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -46,6 +51,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import kotlin.math.abs
 import com.example.gymsharktest.R
 import com.example.gymsharktest.model.Product
 import com.example.gymsharktest.model.ProductLabel
@@ -56,6 +62,15 @@ import com.example.gymsharktest.ui.components.displayText
 import com.example.gymsharktest.ui.components.rememberPriceFormatter
 
 private val HeroShape = RoundedCornerShape(20.dp)
+
+/** 1 when the card is snapped to the start of the carousel, fading as it scrolls away. */
+private fun LazyListState.focusOf(index: Int): Float {
+    val info = layoutInfo
+    val item = info.visibleItemsInfo.firstOrNull { it.index == index } ?: return 0.85f
+    val distance = abs(item.offset - info.viewportStartOffset).toFloat()
+    val size = item.size.toFloat().coerceAtLeast(1f)
+    return 1f - (distance / size).coerceIn(0f, 1f)
+}
 
 /**
  * Draws into the grid's horizontal padding. The reported width stays the cell width so the grid
@@ -91,7 +106,7 @@ fun FeaturedShelf(
     val rowState = rememberLazyListState()
 
     LaunchedEffect(selectedKey) {
-        rowState.scrollToItem(0)
+        rowState.animateScrollToItem(0)
     }
 
     Column(
@@ -134,12 +149,21 @@ fun FeaturedShelf(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 contentPadding = PaddingValues(end = maxWidth - cardWidth),
             ) {
-                items(featured, key = { it.id }) { product ->
+                itemsIndexed(featured, key = { _, product -> product.id }) { index, product ->
+                    val focus = rowState.focusOf(index)
                     FeaturedHeroCard(
                         product = product,
                         selectedLabel = selected,
                         onClick = { onProductClick(product.id) },
-                        modifier = Modifier.width(cardWidth),
+                        modifier = Modifier
+                            .width(cardWidth)
+                            .animateItem()
+                            .graphicsLayer {
+                                val scale = 0.94f + (0.06f * focus)
+                                scaleX = scale
+                                scaleY = scale
+                                alpha = 0.78f + (0.22f * focus)
+                            },
                     )
                 }
             }
@@ -243,8 +267,24 @@ private fun ShelfChip(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val container = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface
-    val content = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
+    val container by animateColorAsState(
+        targetValue = if (selected) {
+            MaterialTheme.colorScheme.primary
+        } else {
+            MaterialTheme.colorScheme.surface
+        },
+        animationSpec = tween(180),
+        label = "chip-container",
+    )
+    val content by animateColorAsState(
+        targetValue = if (selected) {
+            MaterialTheme.colorScheme.onPrimary
+        } else {
+            MaterialTheme.colorScheme.onSurface
+        },
+        animationSpec = tween(180),
+        label = "chip-content",
+    )
     Text(
         text = text,
         style = MaterialTheme.typography.labelLarge,

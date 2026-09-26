@@ -39,6 +39,13 @@
     <string name="action_read_more">Read more</string>
     <string name="action_show_less">Show less</string>
     <string name="detail_materials">Materials</string>
+    <string name="action_share">Share</string>
+    <string name="action_report">Report</string>
+    <string name="action_reported">Reported</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="share_product">%1$s, %2$s</string>
+    <string name="report_title">Report this product?</string>
+    <string name="report_body">Use this if the details look wrong. The note stays on this device.</string>
     <string name="detail_description">Description</string>
 
     <string name="image_missing">No image available</string>

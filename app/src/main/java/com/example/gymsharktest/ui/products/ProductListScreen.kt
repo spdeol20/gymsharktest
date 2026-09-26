@@ -238,6 +238,7 @@ private fun ProductGrid(
                     ProductCard(
                         product = product,
                         onClick = { onProductClick(product.id) },
+                        modifier = Modifier.animateItem(),
                     )
                 }
             }
@@ -264,6 +265,7 @@ private fun LazyGridScope.pagingProductItems(
             ProductCard(
                 product = product,
                 onClick = { onProductClick(product.id) },
+                modifier = Modifier.animateItem(),
             )
         }
     }

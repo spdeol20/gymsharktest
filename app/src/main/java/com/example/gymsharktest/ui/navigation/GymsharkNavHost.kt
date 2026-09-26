@@ -1,6 +1,5 @@
 package com.example.gymsharktest.ui.navigation
 
-import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -22,39 +21,21 @@ data object ProductListRoute
 @Serializable
 data class ProductDetailRoute(val productId: Long)
 
-private const val TRANSITION_MILLIS = 260
+private const val TRANSITION_MILLIS = 220
 
 @Composable
 fun GymsharkNavHost() {
     val navController = rememberNavController()
+    val enter = fadeIn(tween(TRANSITION_MILLIS))
+    val exit = fadeOut(tween(TRANSITION_MILLIS))
 
     NavHost(
         navController = navController,
         startDestination = ProductListRoute,
-        enterTransition = {
-            slideIntoContainer(
-                towards = AnimatedContentTransitionScope.SlideDirection.Start,
-                animationSpec = tween(TRANSITION_MILLIS),
-            ) + fadeIn(tween(TRANSITION_MILLIS))
-        },
-        exitTransition = {
-            slideOutOfContainer(
-                towards = AnimatedContentTransitionScope.SlideDirection.Start,
-                animationSpec = tween(TRANSITION_MILLIS),
-            ) + fadeOut(tween(TRANSITION_MILLIS))
-        },
-        popEnterTransition = {
-            slideIntoContainer(
-                towards = AnimatedContentTransitionScope.SlideDirection.End,
-                animationSpec = tween(TRANSITION_MILLIS),
-            ) + fadeIn(tween(TRANSITION_MILLIS))
-        },
-        popExitTransition = {
-            slideOutOfContainer(
-                towards = AnimatedContentTransitionScope.SlideDirection.End,
-                animationSpec = tween(TRANSITION_MILLIS),
-            ) + fadeOut(tween(TRANSITION_MILLIS))
-        },
+        enterTransition = { enter },
+        exitTransition = { exit },
+        popEnterTransition = { enter },
+        popExitTransition = { exit },
     ) {
         composable<ProductListRoute> {
             ProductListScreen(

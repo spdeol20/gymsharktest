@@ -1,5 +1,15 @@
 package com.example.gymsharktest.ui.detail
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.MutableTransitionState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -24,6 +34,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -31,14 +42,19 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.outlined.FavoriteBorder
+import androidx.compose.material.icons.outlined.Flag
+import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -54,7 +70,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import android.content.Intent
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.gymsharktest.R
@@ -64,6 +82,7 @@ import com.example.gymsharktest.model.SizeAvailability
 import com.example.gymsharktest.ui.components.LabelBadgeRow
 import com.example.gymsharktest.ui.components.MessageState
 import com.example.gymsharktest.ui.components.PriceRow
+import com.example.gymsharktest.ui.components.rememberPriceFormatter
 import com.example.gymsharktest.ui.components.ProductImageView
 import com.example.gymsharktest.ui.components.ShimmerBox
 import com.example.gymsharktest.ui.components.displayText
@@ -108,17 +127,40 @@ fun ProductDetailScreen(
         modifier = modifier,
         containerColor = MaterialTheme.colorScheme.background,
         bottomBar = {
-            if (uiState is ProductDetailUiState.Content) {
-                BasketBar(product = uiState.product)
+            val showBasket = uiState is ProductDetailUiState.Content
+            val basketVisible = remember { MutableTransitionState(false) }
+            LaunchedEffect(showBasket) { basketVisible.targetState = showBasket }
+            AnimatedVisibility(
+                visibleState = basketVisible,
+                enter = slideInVertically(
+                    animationSpec = tween(280, easing = FastOutSlowInEasing),
+                ) { fullHeight -> fullHeight },
+            ) {
+                val product = (uiState as? ProductDetailUiState.Content)?.product
+                if (product != null) {
+                    BasketBar(product = product)
+                }
             }
         },
         topBar = {
             CenterAlignedTopAppBar(
                 title = {
-                    Text(
-                        text = stringResource(R.string.detail_screen_title),
-                        style = MaterialTheme.typography.titleMedium,
-                    )
+                    val title = (uiState as? ProductDetailUiState.Content)?.product?.title
+                        ?: stringResource(R.string.detail_screen_title)
+                    AnimatedContent(
+                        targetState = title,
+                        transitionSpec = {
+                            fadeIn(tween(220)) togetherWith fadeOut(tween(120))
+                        },
+                        label = "detail-title",
+                    ) { value ->
+                        Text(
+                            text = value,
+                            style = MaterialTheme.typography.titleMedium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
                 },
                 navigationIcon = { BackButton(onClick = onBackClick) },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
@@ -225,7 +267,85 @@ private fun DetailContent(product: Product, modifier: Modifier = Modifier) {
                 SectionTitle(stringResource(R.string.detail_materials))
                 MaterialChipRow(labels = product.materialLabels)
             }
+
+            ProductActions(product = product)
         }
+    }
+}
+
+@Composable
+private fun ProductActions(product: Product, modifier: Modifier = Modifier) {
+    val context = LocalContext.current
+    val price = rememberPriceFormatter().format(product.price)
+    var askToReport by rememberSaveable(product.id) { mutableStateOf(false) }
+    var reported by rememberSaveable(product.id) { mutableStateOf(false) }
+
+    HorizontalDivider(color = MaterialTheme.colorScheme.outline, modifier = modifier)
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        TextButton(
+            onClick = {
+                val message = context.getString(R.string.share_product, product.title, price)
+                val send = Intent(Intent.ACTION_SEND).apply {
+                    type = "text/plain"
+                    putExtra(Intent.EXTRA_TEXT, message)
+                }
+                context.startActivity(
+                    Intent.createChooser(send, context.getString(R.string.action_share)),
+                )
+            },
+            modifier = Modifier.weight(1f),
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.Share,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp),
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(stringResource(R.string.action_share))
+        }
+        TextButton(
+            onClick = { askToReport = true },
+            enabled = !reported,
+            modifier = Modifier.weight(1f),
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.Flag,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp),
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(
+                stringResource(
+                    if (reported) R.string.action_reported else R.string.action_report,
+                ),
+            )
+        }
+    }
+
+    if (askToReport) {
+        AlertDialog(
+            onDismissRequest = { askToReport = false },
+            title = { Text(stringResource(R.string.report_title)) },
+            text = { Text(stringResource(R.string.report_body)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        reported = true
+                        askToReport = false
+                    },
+                ) {
+                    Text(stringResource(R.string.action_report))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { askToReport = false }) {
+                    Text(stringResource(R.string.action_cancel))
+                }
+            },
+        )
     }
 }
 
@@ -235,7 +355,10 @@ private fun DescriptionBlock(html: String, modifier: Modifier = Modifier) {
     var expanded by rememberSaveable { mutableStateOf(false) }
     var canExpand by rememberSaveable { mutableStateOf(false) }
 
-    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+    Column(
+        modifier = modifier.animateContentSize(tween(220, easing = FastOutSlowInEasing)),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
         Text(
             text = description,
             style = MaterialTheme.typography.bodyMedium,
