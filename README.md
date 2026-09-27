@@ -40,3 +40,17 @@ The client is treated as untrusted. The catalogue is public product data, not an
 Open the project in Android Studio and run the `app` configuration. Unit tests are in `app/src/test` and include Robolectric coverage of the Room catalogue.
 
 Room writes its schema to `app/schemas` on the first build that runs KSP.
+
+## AI tools
+
+The work started as a full plan, then moved one phase at a time. Each phase was reviewed before the next one began. Cursor drafted the first structure. The UI design was chosen separately: the first generated screens were a basic layout, and the look, spacing, and interactions were directed by hand rather than taken from that draft.
+
+- Featured is its own row. Those products carry a merchandising label, so they are not just the first items in the grid.
+- The shop can be sorted from the top right, including by price. Further sorts can be added there later.
+- The catalogue is offline-first. A failed refresh keeps the last saved products, so the app still works with no connection.
+- Detail takes a palette from the product photo and uses it as a wash behind the image.
+- Motion was added on top of the static layout, including the add-to-basket flight into the bag icon.
+- Report sits on the product page so a bad listing, such as a missing image, can be flagged straight away.
+- Add to basket stores the product, size, and quantity, and the basket screen shows those lines.
+
+Prices stay in minor units, so `1000` is £10.00. The delivery sheet does not invent a returns policy. Checkout states that this catalogue does not take payment and never asks for a card.
