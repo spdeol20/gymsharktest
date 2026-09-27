@@ -24,6 +24,7 @@ class FakeProductRepository(
 ) : ProductRepository {
 
     private val cache = MutableStateFlow(initialProducts)
+    private val cart = MutableStateFlow<List<CartRow>>(emptyList())
 
     /** Result the next [refresh] returns. */
     var nextRefresh: AppResult<List<Product>> = AppResult.Success(emptyList())
@@ -52,9 +53,9 @@ class FakeProductRepository(
         return when (val result = nextRefresh) {
             is AppResult.Success -> {
                 cache.value = result.value
-                AppResult.Success(Unit)
                 val ids = result.value.map { it.id }.toSet()
                 cart.value = cart.value.filter { it.productId in ids }
+                AppResult.Success(Unit)
             }
             is AppResult.Failure -> result
         }
@@ -68,7 +69,6 @@ class FakeProductRepository(
         nextRefresh = AppResult.Failure(error)
     }
 
-    private fun List<Product>.matching(labelKey: String?): List<Product> =
     override fun observeCart(): Flow<List<CartLine>> = combine(cache, cart) { products, rows ->
         rows.sortedByDescending { it.addedAt }.mapNotNull { row ->
             val product = products.firstOrNull { it.id == row.productId } ?: return@mapNotNull null
@@ -132,6 +132,7 @@ class FakeProductRepository(
         val addedAt: Long,
     )
 
+    private fun List<Product>.matching(labelKey: String?): List<Product> =
         if (labelKey.isNullOrEmpty()) {
             this
         } else {
