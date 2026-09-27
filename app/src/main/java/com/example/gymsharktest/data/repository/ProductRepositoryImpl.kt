@@ -4,11 +4,17 @@ import androidx.paging.Pager
 import androidx.paging.PagingConfig
 import androidx.paging.PagingData
 import androidx.paging.map
+import androidx.room.withTransaction
 import com.example.gymsharktest.core.AppResult
+import com.example.gymsharktest.data.local.CartDao
+import com.example.gymsharktest.data.local.CartLineEntity
+import com.example.gymsharktest.data.local.GymsharkDatabase
 import com.example.gymsharktest.data.local.ProductDao
 import com.example.gymsharktest.data.local.ProductEntityMapper
 import com.example.gymsharktest.data.remote.ProductRemoteDataSource
 import com.example.gymsharktest.di.IoDispatcher
+import com.example.gymsharktest.model.BasketQuantity
+import com.example.gymsharktest.model.CartLine
 import com.example.gymsharktest.model.CatalogueSort
 import com.example.gymsharktest.model.Product
 import javax.inject.Inject
@@ -27,7 +33,9 @@ import kotlinx.coroutines.withContext
 @Singleton
 class ProductRepositoryImpl @Inject constructor(
     private val remote: ProductRemoteDataSource,
+    private val database: GymsharkDatabase,
     private val dao: ProductDao,
+    private val cartDao: CartDao,
     private val mapper: ProductEntityMapper,
     @IoDispatcher private val io: CoroutineDispatcher,
 ) : ProductRepository {
@@ -73,11 +81,80 @@ class ProductRepositoryImpl @Inject constructor(
     override suspend fun refresh(): AppResult<Unit> = withContext(io) {
         when (val result = remote.fetchProducts()) {
             is AppResult.Success -> {
-                dao.replaceAll(mapper.toEntities(result.value))
+                database.withTransaction {
+                    dao.replaceAll(mapper.toEntities(result.value))
+                    cartDao.deleteOrphans()
+                }
                 AppResult.Success(Unit)
             }
             // Deliberately does not clear the table: stale products beat an empty screen.
             is AppResult.Failure -> result
+        }
+    }
+
+    override fun observeCart(): Flow<List<CartLine>> =
+        cartDao.observeLines()
+            .map { rows ->
+                rows.mapNotNull { row ->
+                    val product = row.product?.let(mapper::toProduct) ?: return@mapNotNull null
+                    CartLine(
+                        product = product,
+                        size = row.line.sizeKey.ifEmpty { null },
+                        quantity = row.line.quantity,
+                    )
+                }
+            }
+            .flowOn(io)
+
+    override fun observeCartCount(): Flow<Int> =
+        cartDao.observeQuantity().map { total -> total.coerceAtMost(Int.MAX_VALUE.toLong()).toInt() }
+
+    override suspend fun addToCart(productId: Long, size: String?, quantity: Int): Boolean =
+        withContext(io) {
+            if (!BasketQuantity.fits(quantity)) return@withContext false
+            val product = dao.findById(productId)?.let(mapper::toProduct) ?: return@withContext false
+            val sizeKey = acceptedSizeKey(product, size) ?: return@withContext false
+            val existing = cartDao.find(productId, sizeKey)
+            val nextQuantity = ((existing?.quantity ?: 0) + quantity).coerceAtMost(BasketQuantity.MAX)
+            cartDao.upsert(
+                CartLineEntity(
+                    productId = productId,
+                    sizeKey = sizeKey,
+                    quantity = nextQuantity,
+                    addedAt = existing?.addedAt ?: System.currentTimeMillis(),
+                ),
+            )
+            true
+        }
+
+    override suspend fun setCartQuantity(productId: Long, size: String?, quantity: Int) {
+        withContext(io) {
+            val sizeKey = size.orEmpty()
+            if (quantity <= 0) {
+                cartDao.delete(productId, sizeKey)
+                return@withContext
+            }
+            if (quantity > BasketQuantity.MAX) return@withContext
+            val existing = cartDao.find(productId, sizeKey) ?: return@withContext
+            if (dao.findById(productId) == null) {
+                cartDao.delete(productId, sizeKey)
+                return@withContext
+            }
+            cartDao.upsert(existing.copy(quantity = quantity))
+        }
+    }
+
+    /**
+     * A product with no sizes accepts only a null or blank size. A product with sizes accepts
+     * only a size that is still in stock. Sold-out products are never added.
+     */
+    private fun acceptedSizeKey(product: Product, size: String?): String? {
+        if (!product.inStock) return null
+        return if (product.sizes.isEmpty()) {
+            if (size.isNullOrEmpty()) "" else null
+        } else {
+            val chosen = size?.takeIf { it.isNotEmpty() } ?: return null
+            if (product.sizes.any { it.size == chosen && it.inStock }) chosen else null
         }
     }
 

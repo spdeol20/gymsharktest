@@ -59,6 +59,7 @@ import com.example.gymsharktest.model.Product
 import com.example.gymsharktest.model.ProductLabel
 import com.example.gymsharktest.model.SizeAvailability
 import com.example.gymsharktest.model.sortedFor
+import com.example.gymsharktest.ui.components.CartIconButton
 import com.example.gymsharktest.ui.components.displayText
 import com.example.gymsharktest.ui.components.ErrorState
 import com.example.gymsharktest.ui.components.MessageState
@@ -73,6 +74,7 @@ private const val SKELETON_CELL_COUNT = 6
 @Composable
 fun ProductListScreen(
     onProductClick: (Long) -> Unit,
+    onCartClick: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: ProductListViewModel = hiltViewModel(),
 ) {
@@ -91,6 +93,7 @@ fun ProductListScreen(
     ProductListScreen(
         uiState = uiState,
         onProductClick = onProductClick,
+        onCartClick = onCartClick,
         onRefresh = viewModel::refresh,
         onRetry = viewModel::retry,
         onSortChange = viewModel::onSortChange,
@@ -110,6 +113,7 @@ fun ProductListScreen(
     uiState: ProductListUiState,
     onProductClick: (Long) -> Unit,
     onRefresh: () -> Unit,
+    onCartClick: () -> Unit = {},
     onRetry: () -> Unit,
     onSortChange: (CatalogueSort) -> Unit,
     onLabelChange: (String?) -> Unit,
@@ -148,6 +152,10 @@ fun ProductListScreen(
                     }
                 },
                 actions = {
+                    CartIconButton(
+                        count = uiState.cartCount,
+                        onClick = onCartClick,
+                    )
                     if (uiState.productCount > 0) {
                         SortMenu(
                             sort = uiState.sort,

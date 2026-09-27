@@ -32,6 +32,7 @@ data class ProductListUiState(
     val isLoading: Boolean = false,
     val isRefreshing: Boolean = false,
     val error: AppError? = null,
+    val cartCount: Int = 0,
 ) {
     /** Nothing cached and the load failed: the only thing to show is the failure. */
     val showFullScreenError: Boolean get() = error != null && productCount == 0
@@ -97,6 +98,11 @@ class ProductListViewModel @Inject constructor(
         viewModelScope.launch {
             repository.observeProductCount().collect { count ->
                 _uiState.update { it.copy(productCount = count) }
+            }
+        }
+        viewModelScope.launch {
+            repository.observeCartCount().collect { count ->
+                _uiState.update { it.copy(cartCount = count) }
             }
         }
         viewModelScope.launch {

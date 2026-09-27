@@ -38,7 +38,13 @@ class ProductDetailViewModel @Inject constructor(
     private val _uiState = MutableStateFlow<ProductDetailUiState>(ProductDetailUiState.Loading)
     val uiState: StateFlow<ProductDetailUiState> = _uiState.asStateFlow()
 
+    private val _cartCount = MutableStateFlow(0)
+    val cartCount: StateFlow<Int> = _cartCount.asStateFlow()
+
     init {
+        viewModelScope.launch {
+            repository.observeCartCount().collect { _cartCount.value = it }
+        }
         viewModelScope.launch {
             // Re-read by id rather than passing the product through the back stack, so the screen
             // still works from a deep link and survives process death. Room emits again if a
@@ -48,6 +54,12 @@ class ProductDetailViewModel @Inject constructor(
                     ?.let(ProductDetailUiState::Content)
                     ?: ProductDetailUiState.NotFound
             }
+        }
+    }
+
+    fun addToCart(size: String?, quantity: Int) {
+        viewModelScope.launch {
+            repository.addToCart(productId, size, quantity)
         }
     }
 }
