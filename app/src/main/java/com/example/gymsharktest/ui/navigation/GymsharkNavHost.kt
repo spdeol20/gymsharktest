@@ -7,6 +7,7 @@ import androidx.compose.runtime.Composable
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.example.gymsharktest.ui.cart.CartScreen
 import com.example.gymsharktest.ui.detail.ProductDetailScreen
 import com.example.gymsharktest.ui.products.ProductListScreen
 import kotlinx.serialization.Serializable
@@ -20,6 +21,9 @@ data object ProductListRoute
  */
 @Serializable
 data class ProductDetailRoute(val productId: Long)
+
+@Serializable
+data object CartRoute
 
 private const val TRANSITION_MILLIS = 220
 
@@ -42,11 +46,24 @@ fun GymsharkNavHost() {
                 onProductClick = { productId ->
                     navController.navigate(ProductDetailRoute(productId))
                 },
+                onCartClick = { navController.navigate(CartRoute) },
             )
         }
 
         composable<ProductDetailRoute> {
-            ProductDetailScreen(onBackClick = navController::navigateUp)
+            ProductDetailScreen(
+                onBackClick = navController::navigateUp,
+                onCartClick = { navController.navigate(CartRoute) },
+            )
+        }
+
+        composable<CartRoute> {
+            CartScreen(
+                onBackClick = navController::navigateUp,
+                onProductClick = { productId ->
+                    navController.navigate(ProductDetailRoute(productId))
+                },
+            )
         }
     }
 }

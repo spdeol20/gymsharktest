@@ -43,7 +43,9 @@ class ProductRepositoryImplTest {
             .build()
         repository = ProductRepositoryImpl(
             remote = remote,
+            database = database,
             dao = database.productDao(),
+            cartDao = database.cartDao(),
             mapper = ProductEntityMapper(Json { ignoreUnknownKeys = true }),
             io = UnconfinedTestDispatcher(),
         )

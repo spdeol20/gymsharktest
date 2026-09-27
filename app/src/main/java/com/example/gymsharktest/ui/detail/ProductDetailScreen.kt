@@ -3,6 +3,7 @@ package com.example.gymsharktest.ui.detail
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.tween
@@ -58,12 +59,17 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -88,9 +94,12 @@ import android.content.res.Configuration
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.gymsharktest.R
+import com.example.gymsharktest.model.BasketQuantity
 import com.example.gymsharktest.model.Product
+import com.example.gymsharktest.model.ProductImage
 import com.example.gymsharktest.model.ProductLabel
 import com.example.gymsharktest.model.SizeAvailability
+import com.example.gymsharktest.ui.components.CartIconButton
 import com.example.gymsharktest.ui.components.LabelBadgeRow
 import com.example.gymsharktest.ui.components.MessageState
 import com.example.gymsharktest.ui.components.PriceRow
@@ -99,6 +108,8 @@ import com.example.gymsharktest.ui.components.ProductImageView
 import com.example.gymsharktest.ui.components.ShimmerBox
 import com.example.gymsharktest.ui.components.displayText
 import com.example.gymsharktest.ui.text.rememberHtmlDescription
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 private const val MEDIA_ASPECT_RATIO = 0.92f
 private const val WASH_ALPHA = 0.42f
@@ -108,20 +119,24 @@ private val ImageShape = RoundedCornerShape(28.dp)
 private val SheetShape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
 private val LandscapeSheetShape = RoundedCornerShape(28.dp)
 private const val MAX_PAGER_DOTS = 6
-private const val MIN_BASKET_QUANTITY = 1
-private const val MAX_BASKET_QUANTITY = 10
+private const val SHEET_DISMISS_MILLIS = 320L
 
 @Composable
 fun ProductDetailScreen(
     onBackClick: () -> Unit,
+    onCartClick: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: ProductDetailViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val cartCount by viewModel.cartCount.collectAsStateWithLifecycle()
 
     ProductDetailScreen(
         uiState = uiState,
+        cartCount = cartCount,
         onBackClick = onBackClick,
+        onCartClick = onCartClick,
+        onAddToBasket = viewModel::addToCart,
         modifier = modifier,
     )
 }
@@ -132,74 +147,151 @@ fun ProductDetailScreen(
     uiState: ProductDetailUiState,
     onBackClick: () -> Unit,
     modifier: Modifier = Modifier,
+    cartCount: Int = 0,
+    onCartClick: () -> Unit = {},
+    onAddToBasket: (size: String?, quantity: Int) -> Unit = { _, _ -> },
 ) {
-    Scaffold(
-        modifier = modifier,
-        containerColor = MaterialTheme.colorScheme.background,
-        bottomBar = {
-            val showBasket = uiState is ProductDetailUiState.Content
-            val basketVisible = remember { MutableTransitionState(false) }
-            LaunchedEffect(showBasket) { basketVisible.targetState = showBasket }
-            AnimatedVisibility(
-                visibleState = basketVisible,
-                enter = slideInVertically(
-                    animationSpec = tween(280, easing = FastOutSlowInEasing),
-                ) { fullHeight -> fullHeight },
-            ) {
-                val product = (uiState as? ProductDetailUiState.Content)?.product
-                if (product != null) {
-                    BasketBar(product = product)
-                }
-            }
-        },
-        topBar = {
-            CenterAlignedTopAppBar(
-                title = {
-                    val title = (uiState as? ProductDetailUiState.Content)?.product?.title
-                        ?: stringResource(R.string.detail_screen_title)
-                    AnimatedContent(
-                        targetState = title,
-                        transitionSpec = {
-                            fadeIn(tween(220)) togetherWith fadeOut(tween(120))
-                        },
-                        label = "detail-title",
-                    ) { value ->
-                        Text(
-                            text = value,
-                            style = MaterialTheme.typography.titleMedium,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
+    var media by remember { mutableStateOf<MediaPlacement?>(null) }
+    var bagBounds by remember { mutableStateOf<Rect?>(null) }
+    var rootInWindow by remember { mutableStateOf(Rect.Zero) }
+    var flight by remember { mutableStateOf<FlyTarget?>(null) }
+    var flightBusy by remember { mutableStateOf(false) }
+    var bagBump by remember { mutableIntStateOf(0) }
+    val bagScale = remember { Animatable(1f) }
+    val scope = rememberCoroutineScope()
+
+    LaunchedEffect(bagBump) {
+        if (bagBump == 0) return@LaunchedEffect
+        bagScale.snapTo(1f)
+        bagScale.animateTo(1.18f, tween(90))
+        bagScale.animateTo(1f, tween(160))
+    }
+
+    fun startFlight() {
+        val placement = media
+        val image = placement?.image
+        val bag = bagBounds
+        if (placement == null || image == null || bag == null || placement.bounds.isEmpty || bag.isEmpty) {
+            flightBusy = false
+            return
+        }
+        flight = FlyTarget(image = image, from = placement.bounds, to = bag)
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .onGloballyPositioned { rootInWindow = it.boundsInWindow() },
+    ) {
+        Scaffold(
+            modifier = modifier,
+            containerColor = MaterialTheme.colorScheme.background,
+            bottomBar = {
+                val showBasket = uiState is ProductDetailUiState.Content
+                val basketVisible = remember { MutableTransitionState(false) }
+                LaunchedEffect(showBasket) { basketVisible.targetState = showBasket }
+                AnimatedVisibility(
+                    visibleState = basketVisible,
+                    enter = slideInVertically(
+                        animationSpec = tween(280, easing = FastOutSlowInEasing),
+                    ) { fullHeight -> fullHeight },
+                ) {
+                    val product = (uiState as? ProductDetailUiState.Content)?.product
+                    if (product != null) {
+                        BasketBar(
+                            product = product,
+                            onAddToBasket = { size, quantity ->
+                                onAddToBasket(size, quantity)
+                                if (!flightBusy) {
+                                    flightBusy = true
+                                    scope.launch {
+                                        if (size != null) delay(SHEET_DISMISS_MILLIS)
+                                        startFlight()
+                                    }
+                                }
+                            },
                         )
                     }
-                },
-                navigationIcon = { BackButton(onClick = onBackClick) },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background,
-                ),
-            )
-        },
-    ) { innerPadding ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding),
-        ) {
-            when (uiState) {
-                ProductDetailUiState.Loading -> DetailSkeleton()
-
-                ProductDetailUiState.NotFound -> MessageState(
-                    title = stringResource(R.string.empty_title),
-                    body = stringResource(R.string.detail_not_found),
+                }
+            },
+            topBar = {
+                CenterAlignedTopAppBar(
+                    title = {
+                        val title = (uiState as? ProductDetailUiState.Content)?.product?.title
+                            ?: stringResource(R.string.detail_screen_title)
+                        AnimatedContent(
+                            targetState = title,
+                            transitionSpec = {
+                                fadeIn(tween(220)) togetherWith fadeOut(tween(120))
+                            },
+                            label = "detail-title",
+                        ) { value ->
+                            Text(
+                                text = value,
+                                style = MaterialTheme.typography.titleMedium,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                    },
+                    navigationIcon = { BackButton(onClick = onBackClick) },
+                    actions = {
+                        CartIconButton(
+                            count = cartCount,
+                            onClick = onCartClick,
+                            scale = bagScale.value,
+                            onPositioned = { bagBounds = it },
+                        )
+                    },
+                    colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.background,
+                    ),
                 )
+            },
+        ) { innerPadding ->
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding),
+            ) {
+                when (uiState) {
+                    ProductDetailUiState.Loading -> DetailSkeleton()
 
-                is ProductDetailUiState.Content -> DetailContent(product = uiState.product)
+                    ProductDetailUiState.NotFound -> MessageState(
+                        title = stringResource(R.string.empty_title),
+                        body = stringResource(R.string.detail_not_found),
+                    )
+
+                    is ProductDetailUiState.Content -> DetailContent(
+                        product = uiState.product,
+                        onMediaPlaced = { media = it },
+                    )
+                }
             }
+        }
+        val flying = flight
+        if (flying != null) {
+            FlyToBagOverlay(
+                target = flying,
+                rootInWindow = rootInWindow,
+                onFinished = {
+                    flight = null
+                    flightBusy = false
+                    bagBump += 1
+                },
+            )
         }
     }
 }
 
+/** The photo currently on screen, and where it sits in the window. */
+private data class MediaPlacement(
+    val image: ProductImage?,
+    val bounds: Rect,
+)
+
 @Composable
-private fun BackButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
+internal fun BackButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
     Box(
         modifier = modifier
             .padding(start = 12.dp)
@@ -218,7 +310,11 @@ private fun BackButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun DetailContent(product: Product, modifier: Modifier = Modifier) {
+private fun DetailContent(
+    product: Product,
+    onMediaPlaced: (MediaPlacement) -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val landscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
     val wash = rememberImageWash(product.featuredImage?.url)
     val washColor by animateColorAsState(
@@ -241,7 +337,11 @@ private fun DetailContent(product: Product, modifier: Modifier = Modifier) {
                 ),
         ) {
             if (sideBySide) {
-                SideBySideDetail(product = product, imageMaxWidth = availableWidth * 0.5f)
+                SideBySideDetail(
+                    product = product,
+                    imageMaxWidth = availableWidth * 0.5f,
+                    onMediaPlaced = onMediaPlaced,
+                )
             } else {
                 Column(
                     modifier = Modifier
@@ -250,6 +350,7 @@ private fun DetailContent(product: Product, modifier: Modifier = Modifier) {
                 ) {
                     MediaCarousel(
                         product = product,
+                        onMediaPlaced = onMediaPlaced,
                         modifier = Modifier.padding(horizontal = 16.dp),
                     )
                     ProductSheet(
@@ -266,6 +367,7 @@ private fun DetailContent(product: Product, modifier: Modifier = Modifier) {
 private fun SideBySideDetail(
     product: Product,
     imageMaxWidth: Dp,
+    onMediaPlaced: (MediaPlacement) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Row(
@@ -277,6 +379,7 @@ private fun SideBySideDetail(
         MediaCarousel(
             product = product,
             fitHeight = true,
+            onMediaPlaced = onMediaPlaced,
             modifier = Modifier
                 .fillMaxHeight()
                 .widthIn(max = imageMaxWidth)
@@ -526,13 +629,16 @@ private fun InfoRow(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun BasketBar(product: Product, modifier: Modifier = Modifier) {
+private fun BasketBar(
+    product: Product,
+    onAddToBasket: (size: String?, quantity: Int) -> Unit,
+    modifier: Modifier = Modifier,
+) {
     var favourite by rememberSaveable(product.id) { mutableStateOf(false) }
-    var added by rememberSaveable(product.id) { mutableStateOf(false) }
-    var quantity by rememberSaveable(product.id) { mutableStateOf(MIN_BASKET_QUANTITY) }
+    var quantity by rememberSaveable(product.id) { mutableStateOf(BasketQuantity.MIN) }
     var sheetOpen by rememberSaveable(product.id) { mutableStateOf(false) }
     var selectedSize by rememberSaveable(product.id) { mutableStateOf<String?>(null) }
-    val canBuy = product.inStock && !added
+    val canBuy = product.inStock
 
     Column(
         modifier = modifier
@@ -565,20 +671,18 @@ private fun BasketBar(product: Product, modifier: Modifier = Modifier) {
                 QuantityStepper(
                     quantity = quantity,
                     enabled = canBuy,
-                    onDecrease = { quantity = (quantity - 1).coerceAtLeast(MIN_BASKET_QUANTITY) },
-                    onIncrease = { quantity = (quantity + 1).coerceAtMost(MAX_BASKET_QUANTITY) },
+                    onDecrease = { quantity = (quantity - 1).coerceAtLeast(BasketQuantity.MIN) },
+                    onIncrease = { quantity = (quantity + 1).coerceAtMost(BasketQuantity.MAX) },
                 )
                 BasketButton(
-                    label = when {
-                        !product.inStock -> stringResource(R.string.badge_sold_out)
-                        added -> stringResource(R.string.action_added_to_basket)
-                        else -> stringResource(R.string.action_add_to_basket)
-                    },
+                    label = stringResource(
+                        if (product.inStock) R.string.action_add_to_basket else R.string.badge_sold_out,
+                    ),
                     enabled = canBuy,
                     emphasized = product.inStock,
                     onClick = {
                         if (product.sizes.isEmpty()) {
-                            added = true
+                            onAddToBasket(null, quantity)
                         } else {
                             selectedSize = null
                             sheetOpen = true
@@ -601,8 +705,9 @@ private fun BasketBar(product: Product, modifier: Modifier = Modifier) {
                 selectedSize = selectedSize,
                 onSizeSelected = { selectedSize = it },
                 onAdd = {
-                    added = true
+                    val size = selectedSize ?: return@SizePickerSheet
                     sheetOpen = false
+                    onAddToBasket(size, quantity)
                 },
             )
         }
@@ -757,7 +862,7 @@ private fun QuantityStepper(
         QuantityStep(
             symbol = "\u2212",
             contentDescription = stringResource(R.string.action_decrease_quantity),
-            enabled = enabled && quantity > MIN_BASKET_QUANTITY,
+            enabled = enabled && quantity > BasketQuantity.MIN,
             tint = content,
             onClick = onDecrease,
         )
@@ -771,7 +876,7 @@ private fun QuantityStepper(
         QuantityStep(
             symbol = "+",
             contentDescription = stringResource(R.string.action_increase_quantity),
-            enabled = enabled && quantity < MAX_BASKET_QUANTITY,
+            enabled = enabled && quantity < BasketQuantity.MAX,
             tint = content,
             onClick = onIncrease,
         )
@@ -848,8 +953,37 @@ private fun MediaCarousel(
     product: Product,
     modifier: Modifier = Modifier,
     fitHeight: Boolean = false,
+    onMediaPlaced: (MediaPlacement) -> Unit = {},
 ) {
-    val images = product.images
+    if (product.images.isEmpty()) {
+        MissingMedia(
+            product = product,
+            fitHeight = fitHeight,
+            onMediaPlaced = onMediaPlaced,
+            modifier = modifier,
+        )
+    } else {
+        PagedMedia(
+            product = product,
+            fitHeight = fitHeight,
+            onMediaPlaced = onMediaPlaced,
+            modifier = modifier,
+        )
+    }
+}
+
+@Composable
+private fun MissingMedia(
+    product: Product,
+    fitHeight: Boolean,
+    onMediaPlaced: (MediaPlacement) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    var bounds by remember { mutableStateOf<Rect?>(null) }
+    LaunchedEffect(bounds) {
+        val rect = bounds ?: return@LaunchedEffect
+        onMediaPlaced(MediaPlacement(image = null, bounds = rect))
+    }
     val frame = if (fitHeight) {
         modifier.clip(ImageShape)
     } else {
@@ -858,18 +992,29 @@ private fun MediaCarousel(
             .aspectRatio(MEDIA_ASPECT_RATIO)
             .clip(ImageShape)
     }
+    ProductImageView(
+        image = null,
+        contentDescription = stringResource(R.string.product_image_of, product.title),
+        fallbackLabel = product.title,
+        modifier = frame.onGloballyPositioned { bounds = it.boundsInWindow() },
+    )
+}
 
-    if (images.isEmpty()) {
-        ProductImageView(
-            image = null,
-            contentDescription = stringResource(R.string.product_image_of, product.title),
-            fallbackLabel = product.title,
-            modifier = frame,
-        )
-        return
-    }
-
+@Composable
+private fun PagedMedia(
+    product: Product,
+    fitHeight: Boolean,
+    onMediaPlaced: (MediaPlacement) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val images = product.images
+    var bounds by remember { mutableStateOf<Rect?>(null) }
     val pagerState = rememberPagerState { images.size }
+    val shown = images.getOrNull(pagerState.currentPage)
+    LaunchedEffect(shown, bounds) {
+        val rect = bounds ?: return@LaunchedEffect
+        onMediaPlaced(MediaPlacement(image = shown, bounds = rect))
+    }
 
     Column(modifier = if (fitHeight) modifier else modifier.fillMaxWidth()) {
         val pagerModifier = if (fitHeight) {
@@ -877,11 +1022,13 @@ private fun MediaCarousel(
                 .fillMaxWidth()
                 .weight(1f)
                 .clip(ImageShape)
+                .onGloballyPositioned { bounds = it.boundsInWindow() }
         } else {
             Modifier
                 .fillMaxWidth()
                 .aspectRatio(MEDIA_ASPECT_RATIO)
                 .clip(ImageShape)
+                .onGloballyPositioned { bounds = it.boundsInWindow() }
         }
         HorizontalPager(
             state = pagerState,

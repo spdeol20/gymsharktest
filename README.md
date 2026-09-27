@@ -11,6 +11,7 @@ CDN JSON  ->  ProductRemoteDataSource  ->  ProductMapper  ->  Room
                                                                     |
                                               ProductListViewModel  |  Paging 3 (All products)
                                               ProductDetailViewModel |  query by id
+                                              CartViewModel         |  basket lines
                                               Featured shelf        |  in-stock merchandising rows
 ```
 
@@ -18,6 +19,7 @@ CDN JSON  ->  ProductRemoteDataSource  ->  ProductMapper  ->  Room
 - The All products grid pages out of Room (20 per page). Pages away from the viewport are dropped. The featured row shows at most five in-stock products. Choosing a label keeps those five in the row and filters the grid to every product with that label.
 - Sort (catalogue order, price low to high, price high to low) is an `ORDER BY` on that paging query. The choice is kept in the list screen's saved state, so pull-to-refresh and rotation do not reset it. Equal prices keep catalogue order.
 - Detail reads the product by id from Room, so the screen still works after process death without putting the product on the back stack.
+- Add to basket writes a line (product, size, quantity) into Room. The same product and size increases the quantity, up to 10. The basket screen lists those lines. Checkout shows the total and states that this catalogue does not take payment. No card details are collected.
 
 Prices are minor units exactly as the payload sends them. `1000` is £10.00. The document has no currency code; the UI assumes GBP.
 
@@ -29,8 +31,8 @@ The client is treated as untrusted. The catalogue is public product data, not an
 - The CDN certificate is not pinned. No pin set is published for that host, and a pin that outlives a certificate rotation would make the app unable to load the catalogue.
 - No API keys or other secrets are compiled into the app. The catalogue host is a build config field so a staging host cannot be copied into a release build by accident.
 - HTTP logging is debug-only and limited to method, URL, and status. Bodies and headers are not logged. Failures that reach the UI carry an error type, not a message or a stack trace.
-- Room holds the catalogue cache only. Backup and device transfer exclude the database, shared preferences, and files. `allowBackup` is false.
-- A schema change drops the table. The next refresh refills it. That is safe because the rows are not user data.
+- Room holds the catalogue cache and the basket. A basket row is a product id, a size, and a quantity. It is not payment data. Backup and device transfer exclude the database, shared preferences, and files. `allowBackup` is false.
+- Schema 1 to 2 adds the basket table and keeps the catalogue. A version jump with no migration still drops the database. The next refresh refills the catalogue, and the basket starts empty.
 - Release builds run R8. Debug builds do not.
 
 ## Build

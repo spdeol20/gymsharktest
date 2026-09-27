@@ -37,6 +37,20 @@
     <string name="sheet_quantity">Quantity · %1$d</string>
     <string name="action_select_size">Select size %1$s</string>
     <string name="action_added_to_basket">Added</string>
+    <string name="action_open_basket">Basket</string>
+    <string name="action_remove_from_basket">Remove from basket</string>
+    <string name="action_remove">Remove</string>
+    <string name="checkout_line_size">%1$s · ×%2$d</string>
+    <string name="checkout_line_qty">×%1$d</string>
+    <string name="cart_title">Basket</string>
+    <string name="cart_empty_title">Your basket is empty</string>
+    <string name="cart_empty_body">Products you add will show up here.</string>
+    <string name="cart_subtotal">Subtotal</string>
+    <string name="cart_line_size">Size · %1$s</string>
+    <string name="action_checkout">Checkout</string>
+    <string name="checkout_title">Checkout</string>
+    <string name="checkout_body">This catalogue does not take payment.</string>
+    <string name="action_close">Close</string>
     <string name="action_add_favourite">Add to favourites</string>
     <string name="action_remove_favourite">Remove from favourites</string>
     <string name="action_read_more">Read more</string>
@@ -68,6 +82,16 @@
     <string name="label_popular">Popular</string>
     <string name="label_recycled_nylon">Recycled nylon</string>
     <string name="label_recycled_polyester">Recycled polyester</string>
+
+    <plurals name="cart_items">
+        <item quantity="one">%d item</item>
+        <item quantity="other">%d items</item>
+    </plurals>
+
+    <plurals name="basket_count">
+        <item quantity="one">%d item in basket</item>
+        <item quantity="other">%d items in basket</item>
+    </plurals>
 
     <plurals name="sizes_left">
         <item quantity="one">%d size left</item>
