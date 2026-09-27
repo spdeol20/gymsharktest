@@ -32,9 +32,13 @@ import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.listSaver
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -113,6 +117,12 @@ fun ProductListScreen(
     pagingItems: LazyPagingItems<Product>? = null,
     gridProducts: List<Product> = emptyList(),
 ) {
+    val favouriteIds = rememberSaveable(
+        saver = listSaver<SnapshotStateList<Long>, Long>(
+            save = { ids -> ids.toList() },
+            restore = { saved -> mutableStateListOf<Long>().apply { addAll(saved) } },
+        ),
+    ) { mutableStateListOf<Long>() }
     Scaffold(
         modifier = modifier,
         containerColor = MaterialTheme.colorScheme.background,
@@ -176,6 +186,14 @@ fun ProductListScreen(
                     gridProducts = gridProducts,
                     onProductClick = onProductClick,
                     onLabelChange = onLabelChange,
+                    favouriteIds = favouriteIds,
+                    onFavouriteClick = { productId ->
+                        if (productId in favouriteIds) {
+                            favouriteIds.remove(productId)
+                        } else {
+                            favouriteIds.add(productId)
+                        }
+                    },
                 )
             }
         }
@@ -189,6 +207,8 @@ private fun ProductGrid(
     gridProducts: List<Product>,
     onProductClick: (Long) -> Unit,
     onLabelChange: (String?) -> Unit,
+    favouriteIds: SnapshotStateList<Long>,
+    onFavouriteClick: (Long) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     LazyVerticalGrid(
@@ -243,7 +263,7 @@ private fun ProductGrid(
                 }
             }
             if (pagingItems != null) {
-                pagingProductItems(pagingItems, onProductClick)
+                pagingProductItems(pagingItems, onProductClick, favouriteIds, onFavouriteClick)
             } else {
                 items(
                     items = gridProducts,
@@ -251,6 +271,8 @@ private fun ProductGrid(
                 ) { product ->
                     ProductCard(
                         product = product,
+                        favourite = product.id in favouriteIds,
+                        onFavouriteClick = { onFavouriteClick(product.id) },
                         onClick = { onProductClick(product.id) },
                         modifier = Modifier.animateItem(),
                     )
@@ -263,6 +285,8 @@ private fun ProductGrid(
 private fun LazyGridScope.pagingProductItems(
     pagingItems: LazyPagingItems<Product>,
     onProductClick: (Long) -> Unit,
+    favouriteIds: SnapshotStateList<Long>,
+    onFavouriteClick: (Long) -> Unit,
 ) {
     if (pagingItems.itemCount == 0) {
         items(SKELETON_CELL_COUNT) { ProductCardSkeleton() }
@@ -278,6 +302,8 @@ private fun LazyGridScope.pagingProductItems(
         } else {
             ProductCard(
                 product = product,
+                favourite = product.id in favouriteIds,
+                onFavouriteClick = { onFavouriteClick(product.id) },
                 onClick = { onProductClick(product.id) },
                 modifier = Modifier.animateItem(),
             )

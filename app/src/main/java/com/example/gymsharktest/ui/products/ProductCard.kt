@@ -1,6 +1,7 @@
 package com.example.gymsharktest.ui.products
 
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -13,7 +14,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.outlined.FavoriteBorder
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -54,6 +61,8 @@ fun ProductCard(
     product: Product,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    favourite: Boolean = false,
+    onFavouriteClick: () -> Unit = {},
 ) {
     val announcement = product.announceableSummary()
     val interaction = remember { MutableInteractionSource() }
@@ -61,27 +70,30 @@ fun ProductCard(
     val scale by animateFloatAsState(if (pressed) 0.98f else 1f, label = "card-press")
 
     Column(
-        modifier = modifier
-            .graphicsLayer {
-                scaleX = scale
-                scaleY = scale
-            }
-            .clickable(interactionSource = interaction, indication = null, onClick = onClick)
-            .clearAndSetSemantics {
-                contentDescription = announcement
-                role = Role.Button
-                onClick {
-                    onClick()
-                    true
-                }
-            },
+        modifier = modifier.graphicsLayer {
+            scaleX = scale
+            scaleY = scale
+        },
     ) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .aspectRatio(MEDIA_ASPECT_RATIO)
-                .clip(MediaShape),
+                .aspectRatio(MEDIA_ASPECT_RATIO),
         ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clip(MediaShape)
+                    .clickable(interactionSource = interaction, indication = null, onClick = onClick)
+                    .clearAndSetSemantics {
+                        contentDescription = announcement
+                        role = Role.Button
+                        onClick {
+                            onClick()
+                            true
+                        }
+                    },
+            ) {
             ProductImageView(
                 image = product.featuredImage,
                 contentDescription = null,
@@ -118,12 +130,23 @@ fun ProductCard(
                         .padding(10.dp),
                 )
             }
+            }
+            CardFavourite(
+                favourite = favourite,
+                onClick = onFavouriteClick,
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(8.dp),
+            )
         }
 
         Spacer(Modifier.height(10.dp))
 
         Column(
-            modifier = Modifier.padding(horizontal = 2.dp),
+            modifier = Modifier
+                .clickable(interactionSource = interaction, indication = null, onClick = onClick)
+                .clearAndSetSemantics { }
+                .padding(horizontal = 2.dp),
             verticalArrangement = Arrangement.spacedBy(2.dp),
         ) {
             Text(
@@ -171,6 +194,35 @@ fun ProductCard(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun CardFavourite(
+    favourite: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier = modifier
+            .size(36.dp)
+            .clip(CircleShape)
+            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.92f))
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            imageVector = if (favourite) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
+            contentDescription = stringResource(
+                if (favourite) R.string.action_remove_favourite else R.string.action_add_favourite,
+            ),
+            tint = if (favourite) {
+                MaterialTheme.colorScheme.error
+            } else {
+                MaterialTheme.colorScheme.onSurface
+            },
+            modifier = Modifier.size(18.dp),
+        )
     }
 }
 
